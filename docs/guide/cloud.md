@@ -56,7 +56,7 @@ repo in your organization builds the map and you publish it where you choose.
        timeout-minutes: 5
        steps:
          - uses: actions/checkout@v4
-         - uses: getfurio/furio@fff8fd0523c276b1113b185f70422d81088aa3c0 # v0.3.0
+         - uses: getfurio/furio@6005ad1f0b7d1c4ae3f799b63641f2422f982c57 # v0.3.1
            with:
              output: furio
              upload-token: ${{ secrets.FURIO_UPLOAD_TOKEN }}
