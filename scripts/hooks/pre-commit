@@ -1,0 +1,3 @@
+#!/bin/sh
+# Nothing personal or private is committed to this public repo: see scripts/guard.mjs.
+exec node "$(git rev-parse --show-toplevel)/scripts/guard.mjs" staged

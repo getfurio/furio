@@ -1,0 +1,48 @@
+{
+  "name": "@getfurio/cli",
+  "version": "0.3.0",
+  "description": "Furio likes things tidy: validate and map your architecture, straight from your repos.",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://getfurio.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/getfurio/furio",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "architecture",
+    "documentation",
+    "docs-as-code",
+    "github-action",
+    "service-map"
+  ],
+  "bin": {
+    "furio": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "site"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup && node ../../scripts/copy-site.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@getfurio/core": "workspace:*",
+    "@getfurio/schema": "workspace:*",
+    "@getfurio/site": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "@getfurio/source": "./src/main.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

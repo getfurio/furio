@@ -1,0 +1,7 @@
+sequenceDiagram
+  participant Client
+  participant API as Users API
+  participant DB as users-db
+  Client->>API: POST /sessions
+  API->>DB: verify credentials
+  API-->>Client: session token

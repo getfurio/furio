@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://getfurio.com/schema/v1.json
+version: 1
+project: shop
+owner: team-shop
+
+components:
+  - id: shop-api
+    type: service
+    name: Shop API
+    description: Catalog, cart and checkout
+    runtime: aws.ecs
+    tags: [node, critical]
+    links:
+      docs: https://example.com/shop-api
+  - id: orders-events
+    type: queue
+    provider: aws.sqs
+    description: Order lifecycle events
+  - id: invoice-worker
+    type: function
+    provider: aws.lambda
+    description: Issues invoices for paid orders
+  - id: shop-db
+    type: database
+    provider: aws.rds
+
+relations:
+  - from: shop-api
+    to: shop-db
+    type: writes
+  - from: shop-api
+    to: orders-events
+    type: publishes
+  - from: invoice-worker
+    to: orders-events
+    type: consumes
+  - from: shop-api
+    to: platform/users-api
+    type: calls
+    protocol: http
+  - from: shop-api
+    to: platform/stripe
+    type: calls
+    protocol: https
+  - from: invoice-worker
+    to: platform/email
+    type: calls
+
+diagrams:
+  - file: diagrams/checkout-flow.mmd
+    title: Checkout flow
+    components: [shop-api, invoice-worker, platform/stripe]
+  - file: diagrams/refund-sequence.md
+    title: Refund sequence
+    components: [shop-api]

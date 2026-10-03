@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://getfurio.com/schema/v1.json
+version: 1
+project: platform
+owner: team-platform
+
+components:
+  - id: users-api
+    type: service
+    name: Users API
+    description: Accounts, sessions and permissions
+    runtime: aws.ecs
+  - id: users-db
+    type: database
+    provider: aws.rds
+  - id: email
+    type: service
+    name: Email service
+    provider: brevo
+  - id: stripe
+    type: external
+    name: Stripe
+    provider: stripe
+    owner: team-payments
+
+relations:
+  - from: users-api
+    to: users-db
+    type: reads
+  - from: users-api
+    to: users-db
+    type: writes
+  - from: users-api
+    to: email
+    type: calls
+
+diagrams:
+  - file: diagrams/login.mmd
+    title: Login
+    components: [users-api]

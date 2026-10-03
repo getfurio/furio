@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getfurio.com/schema/v1.json",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Manifest schema version."
+    },
+    "project": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "The software this repo belongs to. Several repos can share one project."
+    },
+    "owner": {
+      "description": "Default owner (team) for every component in this manifest.",
+      "type": "string",
+      "minLength": 1
+    },
+    "closed": {
+      "description": "True when this repo is the whole project: a reference to a component of the same project that this manifest does not declare is an error, not a ghost.",
+      "type": "boolean"
+    },
+    "components": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "Unique within the project, kebab-case."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "service",
+              "function",
+              "job",
+              "frontend",
+              "queue",
+              "topic",
+              "database",
+              "cache",
+              "storage",
+              "external",
+              "client",
+              "proxy",
+              "domain"
+            ],
+            "description": "What kind of component this is."
+          },
+          "name": {
+            "description": "Human-readable name.",
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "owner": {
+            "description": "Team responsible for this component. Defaults to the manifest owner.",
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+            "description": "Where it runs or who provides it, e.g. \"aws.sqs\", \"gcp.pubsub\", \"stripe\"."
+          },
+          "runtime": {
+            "description": "Runtime platform, e.g. \"aws.ecs\".",
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "tech": {
+            "description": "The concrete technology, e.g. \"postgres\", \"redis\", \"node\", \"nginx\", \"tauri\". Free text, lowercase.",
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "path": {
+            "description": "Folder of this component in the repo, e.g. \"apps/server\".",
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.\\.?(?:\\/|$))[^\\\\\\0]+$"
+          },
+          "host": {
+            "description": "Where it runs: a machine, a cluster, a region, e.g. \"customer-machine\", \"vps-1\", \"aws.eu-west-1\".",
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "status": {
+            "description": "active (the default), deprecated (still running, on its way out) or dev-only (CI, local tools).",
+            "type": "string",
+            "enum": [
+              "active",
+              "deprecated",
+              "dev-only"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "links": {
+            "description": "Named links, e.g. docs, dashboard, runbook.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1
+            },
+            "additionalProperties": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "additionalProperties": false,
+        "title": "Component"
+      }
+    },
+    "relations": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "A component declared in this manifest."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*\\/)?[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "A component id in this project, or \"project/component\" for another project."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "calls",
+              "publishes",
+              "consumes",
+              "reads",
+              "writes",
+              "reads_writes",
+              "serves",
+              "spawns",
+              "depends_on"
+            ]
+          },
+          "protocol": {
+            "description": "e.g. http, grpc, amqp.",
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "type"
+        ],
+        "additionalProperties": false,
+        "title": "Relation"
+      }
+    },
+    "diagrams": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path relative to .architecture/: a .mmd file, or a .md file with ```mermaid blocks."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "components": {
+            "description": "Components this diagram describes; it shows up on their pages.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*\\/)?[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "description": "A component id in this project, or \"project/component\" for another project."
+            }
+          }
+        },
+        "required": [
+          "file",
+          "title"
+        ],
+        "additionalProperties": false,
+        "title": "Diagram"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "project"
+  ],
+  "additionalProperties": false,
+  "title": "Furio architecture manifest",
+  "description": "Describes the part of the architecture owned by this repo. https://getfurio.com"
+}

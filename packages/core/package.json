@@ -1,0 +1,31 @@
+{
+  "name": "@getfurio/core",
+  "version": "0.1.0",
+  "description": "Furio engine: loads, validates and aggregates architecture manifests.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/getfurio/furio",
+    "directory": "packages/core"
+  },
+  "exports": {
+    ".": {
+      "@getfurio/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@getfurio/schema": "workspace:*",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}

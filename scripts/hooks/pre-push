@@ -1,0 +1,3 @@
+#!/bin/sh
+# Every commit about to leave this machine is checked: see scripts/guard.mjs.
+exec node "$(git rev-parse --show-toplevel)/scripts/guard.mjs" push "$1"

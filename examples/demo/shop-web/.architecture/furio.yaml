@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://getfurio.com/schema/v1.json
+# Second repo of the "shop" project: it references shop-api, declared in the shop-api repo.
+version: 1
+project: shop
+owner: team-shop-web
+
+components:
+  - id: storefront
+    type: frontend
+    name: Storefront
+    runtime: vercel
+
+relations:
+  - from: storefront
+    to: shop-api
+    type: calls
+    protocol: http
+  - from: storefront
+    to: platform/users-api
+    type: calls
+    protocol: http

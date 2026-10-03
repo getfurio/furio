@@ -1,0 +1,33 @@
+{
+  "name": "furio-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath scripts/hooks || exit 0",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "smoke": "node packages/cli/dist/bin.js validate --strict examples/demo/shop-api examples/demo/shop-web examples/demo/platform",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
+    "furio": "tsx --conditions=@getfurio/source packages/cli/src/bin.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}

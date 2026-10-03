@@ -1,0 +1,17 @@
+{
+  "name": "@getfurio/action",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Furio GitHub Action. Its bundle (dist/index.js) is committed: Actions run it as is.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsup && node ../../scripts/copy-site.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@getfurio/core": "workspace:*",
+    "@getfurio/site": "workspace:*",
+    "@getfurio/cli": "workspace:*"
+  }
+}

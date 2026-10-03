@@ -1,0 +1,9 @@
+{
+  "name": "furio",
+  "description": "Keeps the .architecture/ manifest of your repo in sync with the code, so the Furio map never lies.",
+  "version": "0.1.0",
+  "author": { "name": "Furio", "url": "https://getfurio.com" },
+  "homepage": "https://getfurio.com",
+  "repository": "https://github.com/getfurio/furio",
+  "license": "MIT"
+}
