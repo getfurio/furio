@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: getfurio/furio@6005ad1f0b7d1c4ae3f799b63641f2422f982c57 # v0.3.1
+      - uses: getfurio/furio@b78e768dc46514f2f38a958933c8b5c08a8762e2 # v0.3.2
         with:
           # Optional: the published map, to check references to other repos.
           model: https://<your-org>.github.io/catalog/model.json
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: getfurio/furio@6005ad1f0b7d1c4ae3f799b63641f2422f982c57 # v0.3.1
+      - uses: getfurio/furio@b78e768dc46514f2f38a958933c8b5c08a8762e2 # v0.3.2
         with:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
