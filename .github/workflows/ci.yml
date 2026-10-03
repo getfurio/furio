@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      # Actions are pinned to a commit (a tag can be moved); Dependabot keeps them current.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Generated files are up to date
+        run: |
+          git diff --exit-code packages/schema/schema/v1.json || {
+            echo "::error::Run pnpm build and commit packages/schema/schema/v1.json"; exit 1; }
+          git diff --exit-code packages/action/dist packages/action/site || {
+            echo "::error::Run pnpm build and commit packages/action/dist and packages/action/site"; exit 1; }
+          test -z "$(git status --porcelain packages/action/site)" || {
+            echo "::error::packages/action/site has uncommitted files: run pnpm build and commit"; exit 1; }
+
+      # The Action as GitHub runs it, from its committed bundle.
+      - name: Smoke test the Action (validate)
+        uses: ./
+        with:
+          path: examples/demo/shop-api examples/demo/shop-web examples/demo/platform
+          strict: true
+
+      # No package ships without being run: the built CLI validates the examples, then the packed
+      # tarball is installed from scratch and run, exactly as `npx @getfurio/cli` would.
+      - name: Smoke test the built CLI
+        run: pnpm smoke
+
+      - name: Smoke test the npm tarball
+        run: |
+          cd packages/cli
+          pnpm pack --pack-destination "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP"
+          npm init -y > /dev/null
+          npm install ./getfurio-cli-*.tgz
+          npx @getfurio/cli --version
+          npx @getfurio/cli validate "$GITHUB_WORKSPACE/examples/demo/shop-api"
+          npx @getfurio/cli build --site --workspace demo --out map "$GITHUB_WORKSPACE"/examples/demo/*
+          test -f map/index.html && test -f map/model.json
+          if npx @getfurio/cli validate "$GITHUB_WORKSPACE/packages"; then
+            echo "expected a failure on a repo without manifest" && exit 1
+          fi

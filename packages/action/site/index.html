@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Diagrams come from any repo of the workspace: nothing they contain may load an image, a
+         font or a style from another host (it would learn who opens the map), embed a page or
+         post a form. A host that serves icons or fonts from elsewhere adds it here. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'self'"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090a" />
+    <title>Furio map</title>
+    <script>
+      // Theme before first paint: the viewer's choice, else the system's.
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem('furio-theme');
+        } catch (e) {}
+        if (t !== 'light' && t !== 'dark')
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+        var p;
+        try {
+          p = localStorage.getItem('furio-palette');
+        } catch (e) {}
+        if (p === 'blueprint' || p === 'circuit') document.documentElement.dataset.palette = p;
+      })();
+    </script>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script type="module" crossorigin src="./assets/index-BIe2ZaJE.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-W7wSyTde.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-C7S8v4CX.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

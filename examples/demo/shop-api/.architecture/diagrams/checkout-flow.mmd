@@ -1,0 +1,6 @@
+flowchart LR
+  customer([Customer]) --> api[Shop API]
+  api --> stripe[(Stripe)]
+  api -- order.paid --> queue[[orders-events]]
+  queue --> worker[invoice-worker]
+  worker --> email[Email service]

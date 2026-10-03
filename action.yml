@@ -1,0 +1,61 @@
+name: Furio
+description: Furio likes things tidy. Validate architecture manifests and build the map of your workspace.
+author: getfurio
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  command:
+    description: '"validate" checks the .architecture/ of this repo; "build" collects every repo of the owner and writes model.json.'
+    default: validate
+  path:
+    description: 'validate: repo paths to check, separated by spaces.'
+    default: .
+  model:
+    description: 'validate: URL or path of a published model.json, to check references to other repos.'
+    default: ''
+  github:
+    description: 'build: GitHub organization or user to collect from. Defaults to the owner of this repo.'
+    default: ''
+  workspace:
+    description: 'build: workspace id. Defaults to the owner.'
+    default: ''
+  token:
+    description: 'build: token with read access to the contents of the repos (e.g. secrets.FURIO_TOKEN).'
+    default: ''
+  out:
+    description: 'build: output folder (model.json goes inside) or .json file.'
+    default: _furio
+  site:
+    description: 'build: also write the map (static site) next to model.json.'
+    default: 'true'
+  list-private:
+    description: 'build: also list the private repos that have no manifest. By default their names stay out of the model, which is often published where anyone can read it.'
+    default: 'false'
+  output:
+    description: 'validate: "furio" also sends the manifest to Furio Cloud on pushes to the default branch; on pull requests it comments the architecture diff (Business plan). Default "none".'
+    default: none
+  upload-token:
+    description: 'output furio: the workspace upload token (e.g. secrets.FURIO_UPLOAD_TOKEN).'
+    default: ''
+  github-token:
+    description: 'output furio, pull requests: token used to post the architecture comment (needs "pull-requests: write"). Default: the workflow token.'
+    default: ${{ github.token }}
+  furio-url:
+    description: 'output furio: Furio Cloud address. Default https://getfurio.com.'
+    default: ''
+  strict:
+    description: 'Fail on warnings (validate) or on invalid repos (build).'
+    default: 'false'
+  plain:
+    description: 'No personality in the output.'
+    default: 'false'
+
+outputs:
+  model:
+    description: 'build: absolute path of the written model.json.'
+
+runs:
+  using: node24
+  main: packages/action/dist/index.js

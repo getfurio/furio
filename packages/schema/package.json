@@ -1,0 +1,31 @@
+{
+  "name": "@getfurio/schema",
+  "version": "0.1.0",
+  "description": "Schema of the Furio architecture manifest (.architecture/architecture.yaml).",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/getfurio/furio",
+    "directory": "packages/schema"
+  },
+  "exports": {
+    ".": {
+      "@getfurio/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema/v1.json": "./schema/v1.json"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsx scripts/export-json-schema.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

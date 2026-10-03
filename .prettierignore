@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+dist/
+coverage/
+.claude/
+packages/schema/schema/*.json
+packages/*/site/
+packages/site/public/model.json
+packages/cli/src/skill.generated.ts
+**/.impeccable/questions/
+**/.impeccable/review/

@@ -1,0 +1,12 @@
+{
+  "name": "getfurio",
+  "description": "Furio plugins for Claude Code",
+  "owner": { "name": "Furio", "url": "https://getfurio.com" },
+  "plugins": [
+    {
+      "name": "furio",
+      "source": "./plugins/furio",
+      "description": "Keeps the .architecture/ manifest of your repo in sync with the code."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+.claude/worktrees/
+.claude/launch.json
+# The Action runs its committed bundle.
+!packages/action/dist/
+packages/cli/site/
+!packages/action/site/
+# Local data for the dev server (the demo model, or your own): never committed, never built.
+packages/site/public/*
+!packages/site/public/favicon.svg
+.board-model.json
+# Local design notes and tool state.
+.impeccable

@@ -1,0 +1,38 @@
+# Nothing personal or private enters this public repo: commits use GitHub noreply addresses, and
+# no home folder path, personal email address or private term appears in what a pull request
+# adds, in its commit messages, its title or its description. See scripts/guard.mjs.
+# The private terms are a secret (PRIVATE_TERMS, one per line); forks run the general checks.
+name: Guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: guard-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Every commit of the pull request, not only the merge.
+          fetch-depth: 0
+
+      - name: Check commits, messages and the pull request text
+        env:
+          PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+          GUARD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          GUARD_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/guard.mjs ci
