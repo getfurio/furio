@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ARCHITECTURE_DIR } from '@getfurio/schema';
 import type { RepoSource } from './build.js';
+import { printable } from './diagnostics.js';
 import { MAX_FILE_SIZE } from './files.js';
 
 export interface CollectOptions {
@@ -59,6 +60,14 @@ const MAX_FILES_PER_REPO = 300;
 export class GitHubError extends Error {}
 
 /**
+ * Whether a path the API gave stays in the folder it is written to, on any system: no empty,
+ * `.` or `..` part, with either slash (a backslash is a separator on Windows).
+ */
+function staysInside(path: string): boolean {
+  return path.split(/[\\/]/).every((part) => part && part !== '.' && part !== '..');
+}
+
+/**
  * Downloads the `.architecture/` folder of every repo of a GitHub owner, from the default branch.
  * Only that folder is read: Furio never needs the code.
  */
@@ -70,6 +79,12 @@ export async function collectFromGitHub(options: CollectOptions): Promise<Collec
   let unlisted = 0;
 
   await mapLimit(repos, options.concurrency ?? 6, async (repo) => {
+    // One folder per repo, named after it: a name that is a path would be written elsewhere.
+    if (/[\\/]/.test(repo.name) || !staysInside(repo.name)) {
+      throw new GitHubError(
+        `GitHub API: "${printable(repo.name)}" is not a repo name; nothing was written for it.`,
+      );
+    }
     const base = { id: repo.full_name, url: repo.html_url };
     const skip = (reason: SkippedRepo['reason']) => {
       if (repo.private && !options.listPrivate) unlisted++;
@@ -96,7 +111,10 @@ export async function collectFromGitHub(options: CollectOptions): Promise<Collec
     const files = tree!.tree
       .filter(
         (e) =>
-          e.type === 'blob' && COLLECTED_EXTENSIONS.test(e.path) && (e.size ?? 0) <= MAX_FILE_SIZE,
+          e.type === 'blob' &&
+          COLLECTED_EXTENSIONS.test(e.path) &&
+          (e.size ?? 0) <= MAX_FILE_SIZE &&
+          staysInside(e.path),
       )
       // The manifest and what sits next to it first, if the folder has more files than the limit.
       .sort((a, b) => depth(a.path) - depth(b.path) || a.path.localeCompare(b.path))
@@ -142,9 +160,22 @@ class GitHubApi {
       if (response.status === 404 && allow404) return undefined;
       await this.ensureOk(response, url);
       out.push(...((await response.json()) as T[]));
-      url = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') ?? '')?.[1];
+      url = this.nextPage(response, url);
     }
     return out;
+  }
+
+  /** The next page, on the host of the API only: the token goes with every request. */
+  private nextPage(response: Response, from: string): string | undefined {
+    const link = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') ?? '')?.[1];
+    if (!link) return undefined;
+    const next = URL.canParse(link, from) ? new URL(link, from) : undefined;
+    if (!next || next.origin !== new URL(this.base).origin) {
+      throw new GitHubError(
+        `GitHub API: the page after ${from.slice(this.base.length)} is on another host (${printable(link)}). Not followed: the token is sent to ${this.base} only.`,
+      );
+    }
+    return next.href;
   }
 
   async get<T>(
