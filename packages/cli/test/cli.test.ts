@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { run, type Io } from '../src/main.js';
 import { formatBuild } from '../src/report.js';
 
@@ -159,6 +159,25 @@ describe('furio build', () => {
     const { code, stderr } = await cli(['build', ...demo]);
     expect(code).toBe(2);
     expect(stderr).toContain('--workspace');
+  });
+
+  it('leaves no collected manifest behind when GitHub fails half way', async () => {
+    const file = out();
+    const temp = mkdtempSync(join(tmpdir(), 'furio-temp-test-'));
+    for (const name of ['TMPDIR', 'TEMP', 'TMP']) vi.stubEnv(name, temp);
+    let stderr = '';
+    const code = await run(['build', '--github', 'acme', '--out', file], {
+      stdout: () => {},
+      stderr: (t) => void (stderr += t),
+      cwd: ROOT,
+      env: {},
+      isTTY: false,
+      fetch: (async () =>
+        new Response('{"message":"Bad credentials"}', { status: 401 })) as typeof fetch,
+    }).finally(() => vi.unstubAllEnvs());
+    expect(code).toBe(2);
+    expect(stderr).toContain('GitHub rejected the token');
+    expect(readdirSync(temp)).toEqual([]);
   });
 
   it('feeds a published model to validate', async () => {

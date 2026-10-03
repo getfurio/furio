@@ -138,6 +138,25 @@ describe('furio upload', () => {
     expect(unreachable.stderr).toContain('ECONNREFUSED');
   });
 
+  it('sends the token over https only, or to this machine', async () => {
+    const calls: Call[] = [];
+    const args = ['upload', EXAMPLE, '--repo', 'acme/a'];
+    const env = { FURIO_UPLOAD_TOKEN: TOKEN };
+    const flag = await cli([...args, '--url', 'http://cloud.test'], env, fakeFetch(200, {}, calls));
+    expect(flag.code).toBe(2);
+    expect(flag.stderr).toContain('--url (or FURIO_URL) must be an https address');
+    const fromEnv = await cli(
+      args,
+      { ...env, FURIO_URL: 'http://cloud.test' },
+      fakeFetch(200, {}, calls),
+    );
+    expect(fromEnv.code).toBe(2);
+    expect(calls).toHaveLength(0);
+
+    await cli([...args, '--url', 'http://localhost:8787'], env, fakeFetch(200, {}, calls));
+    expect(calls[0]?.url).toBe('http://localhost:8787/api/v1/upload');
+  });
+
   it('needs a token from the environment and a repo', async () => {
     const noToken = await cli(['upload', EXAMPLE, '--repo', 'acme/a'], {});
     expect(noToken.code).toBe(2);

@@ -260,6 +260,17 @@ describe('codeUrl', () => {
     expect(codeUrl(local, { ...api, path: undefined })).toBeUndefined();
     expect(codeUrl(site, api)).toBeUndefined(); // no repo URL
   });
+
+  it('keeps the address of a repo only if it is a web address: the map links to it', () => {
+    const model = structuredClone(site.model);
+    const urls = ['javascript:alert(1)', 'https://github.com/acme/shop-api', '//example.com'];
+    model.repos = model.repos.map((r, i) => ({ ...r, url: urls[i]! }));
+    expect(indexModel(model).model.repos.map((r) => r.url)).toEqual([
+      undefined,
+      'https://github.com/acme/shop-api',
+      undefined,
+    ]);
+  });
 });
 
 describe('markdown diagrams', () => {

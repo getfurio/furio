@@ -78,7 +78,8 @@ Upload options
   --repo <owner/name>            The repo on GitHub (default: GITHUB_REPOSITORY, else the
                                  origin remote)
   --commit <sha>                 The commit uploaded (default: GITHUB_SHA)
-  --url <url>                    Furio Cloud (default: FURIO_URL or ${DEFAULT_FURIO_URL})
+  --url <url>                    Furio Cloud, over https (default: FURIO_URL or
+                                 ${DEFAULT_FURIO_URL})
   --dry-run                      Send nothing: validate, ask Furio Cloud whether it would
                                  accept the upload, and list the files
   --preview <file>               Pull requests: write to <file> the Markdown comment with what
@@ -249,29 +250,30 @@ async function build(paths: string[], values: Values, io: Io): Promise<number> {
   let skipped: SkippedRepo[] = [];
   let unlisted = 0;
   let checkout: string | undefined;
-  if (values.github) {
-    checkout = mkdtempSync(join(tmpdir(), 'furio-collect-'));
-    const token = io.env.FURIO_TOKEN || io.env.GITHUB_TOKEN || undefined;
-    const collected = await collectFromGitHub({
-      owner: values.github,
-      outDir: checkout,
-      listPrivate: values['list-private'],
-      ...(token ? { token } : {}),
-      ...(io.fetch ? { fetch: io.fetch } : {}),
-      ...(io.env.GITHUB_API_URL ? { apiUrl: io.env.GITHUB_API_URL } : {}),
-    });
-    sources = collected.sources;
-    skipped = collected.skipped;
-    unlisted = collected.unlisted;
-  } else {
-    const dirs = paths.length ? paths : ['.'];
-    sources = dirs.map((dir) => {
-      const full = resolve(io.cwd, dir);
-      return { id: `${workspace}/${basename(full)}`, dir: full };
-    });
-  }
-
+  // The collected manifests, of private repos too, never stay behind: not even on a failure.
   try {
+    if (values.github) {
+      checkout = mkdtempSync(join(tmpdir(), 'furio-collect-'));
+      const token = io.env.FURIO_TOKEN || io.env.GITHUB_TOKEN || undefined;
+      const collected = await collectFromGitHub({
+        owner: values.github,
+        outDir: checkout,
+        listPrivate: values['list-private'],
+        ...(token ? { token } : {}),
+        ...(io.fetch ? { fetch: io.fetch } : {}),
+        ...(io.env.GITHUB_API_URL ? { apiUrl: io.env.GITHUB_API_URL } : {}),
+      });
+      sources = collected.sources;
+      skipped = collected.skipped;
+      unlisted = collected.unlisted;
+    } else {
+      const dirs = paths.length ? paths : ['.'];
+      sources = dirs.map((dir) => {
+        const full = resolve(io.cwd, dir);
+        return { id: `${workspace}/${basename(full)}`, dir: full };
+      });
+    }
+
     const { model } = buildModel(sources, { workspace, generatorVersion: VERSION, skipped });
     const out = resolve(io.cwd, values.out ?? 'furio-model.json');
     const file = out.endsWith('.json') ? out : join(out, 'model.json');
@@ -319,7 +321,7 @@ async function uploadCommand(paths: string[], values: Values, io: Io): Promise<n
     root,
     repo,
     ...(commit ? { commit } : {}),
-    url: values.url ?? io.env.FURIO_URL ?? DEFAULT_FURIO_URL,
+    url: furioUrl(values.url ?? io.env.FURIO_URL ?? DEFAULT_FURIO_URL),
     ...(token ? { token } : {}),
     dryRun,
     ...(values.preview ? { previewOut: resolve(io.cwd, values.preview) } : {}),
@@ -331,6 +333,16 @@ async function uploadCommand(paths: string[], values: Values, io: Io): Promise<n
     stdout: io.stdout,
     stderr: io.stderr,
   });
+}
+
+/** The upload token goes to this address: https only, plain http just for this machine. */
+function furioUrl(value: string): string {
+  const url = URL.canParse(value) ? new URL(value) : undefined;
+  const local = /^(localhost|.+\.localhost|127\.0\.0\.1|\[::1\])$/.test(url?.hostname ?? '');
+  if (url?.protocol === 'https:' || (url?.protocol === 'http:' && local)) return value;
+  throw new UsageError(
+    `--url (or FURIO_URL) must be an https address, got "${value}": the upload token would travel unencrypted. Plain http is accepted for localhost only.`,
+  );
 }
 
 function init(paths: string[], values: Values, io: Io): number {

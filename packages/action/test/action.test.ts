@@ -87,6 +87,50 @@ describe('Furio action', () => {
     expect(summary).toContain('skipped (no-manifest)');
     expect(summary).toContain('- **warning** `acme/api` f:3: m');
   });
+
+  it('shows what the repos say as text, never as Markdown of its own', () => {
+    const model = {
+      workspace: { id: 'acme' },
+      components: [],
+      relations: [],
+      diagrams: [],
+      repos: [
+        {
+          id: 'acme/api_v2',
+          url: 'javascript:alert(1)',
+          project: 'shop | [x](https://example.com)',
+          status: 'invalid',
+          errors: 1,
+          warnings: 0,
+        },
+        {
+          id: 'acme/web',
+          url: 'https://example.com/a) [x](https://example.com/b',
+          status: 'valid',
+          errors: 0,
+          warnings: 0,
+        },
+      ],
+      issues: [
+        {
+          repo: 'acme/`api`',
+          severity: 'error',
+          code: 'unknown-type',
+          message: 'Unknown type "<img src=x>\n| a | b |"',
+          hint: 'See ![logo](https://example.com/x.png) and $x$.',
+          file: 'a*b*.yaml',
+        },
+      ],
+    } as unknown as Model;
+    const summary = buildSummary(model);
+    expect(summary).toContain(
+      '| acme/api\\_v2 | shop \\| \\[x\\](https://example.com) | invalid | 1 | 0 |',
+    );
+    expect(summary).toContain('| acme/web | ');
+    expect(summary).toContain(
+      '- **error** `acme/ api ` a\\*b\\*.yaml: Unknown type "\\<img src=x\\> \\| a \\| b \\|" See !\\[logo\\](https://example.com/x.png) and \\$x\\$.',
+    );
+  });
 });
 
 describe('the committed map', () => {
@@ -131,6 +175,20 @@ describe('output: furio', () => {
   it('only validates other branches', () => {
     expect(buildArgs({ ...push, GITHUB_REF: 'refs/heads/feature' }, event)[0]).toBe('validate');
     expect(buildArgs(push, {})[0]).toBe('validate');
+  });
+
+  it('uploads on a manual or scheduled run of the default branch, on no other event', () => {
+    for (const name of ['workflow_dispatch', 'schedule'])
+      expect(buildArgs({ ...push, GITHUB_EVENT_NAME: name }, event)).toEqual(['upload', '.']);
+    // The ref of these is the default branch, whatever code the workflow checked out.
+    for (const name of ['issue_comment', 'workflow_run', 'pull_request_target']) {
+      const other = { ...push, GITHUB_EVENT_NAME: name };
+      expect(buildArgs(other, event)).toEqual(['validate', '.']);
+      expect(uploadNote(other, event)).toContain('Furio Cloud receives the manifest on pushes to');
+    }
+    expect(uploadNote({ ...push, GITHUB_EVENT_NAME: 'issue_comment' }, event)).toBe(
+      'Event issue_comment: validation only, nothing uploaded. Furio Cloud receives the manifest on pushes to `main`, the default branch.',
+    );
   });
 
   it('says why a run only validates', () => {

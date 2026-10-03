@@ -2,3 +2,6 @@ packages:
   - packages/*
 allowBuilds:
   esbuild: true
+# chevrotain (a dependency of mermaid) pins a lodash-es with known advisories.
+overrides:
+  'lodash-es@<4.18.1': ^4.18.1

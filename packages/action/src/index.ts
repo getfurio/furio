@@ -37,13 +37,18 @@ export function readEvent(env: NodeJS.ProcessEnv): GitHubEvent {
   }
 }
 
+/**
+ * The events that upload. A closed list: on others (a comment, a review, `workflow_run`) the ref
+ * can be the default branch while the workflow checked out the code of a pull request.
+ */
+const UPLOAD_EVENTS = ['push', 'workflow_dispatch', 'schedule'];
+
 /** Furio Cloud gets the manifest of the default branch only: pull requests are just checked. */
 export function onDefaultBranch(env: NodeJS.ProcessEnv, event: GitHubEvent): boolean {
   const branch = event.repository?.default_branch;
   return (
     !!branch &&
-    env.GITHUB_EVENT_NAME !== 'pull_request' &&
-    env.GITHUB_EVENT_NAME !== 'pull_request_target' &&
+    UPLOAD_EVENTS.includes(env.GITHUB_EVENT_NAME ?? '') &&
     env.GITHUB_REF === `refs/heads/${branch}`
   );
 }
@@ -59,8 +64,10 @@ export function uploadNote(env: NodeJS.ProcessEnv, event: GitHubEvent): string |
     return `Pull request: checked, and compared with the map for an architecture comment (Furio Cloud Business). Furio Cloud receives the manifest on pushes to ${target}.`;
   if (env.GITHUB_EVENT_NAME === 'pull_request_target')
     return `Pull request: validation only. Furio Cloud receives the manifest on pushes to ${target}.`;
+  if (!UPLOAD_EVENTS.includes(env.GITHUB_EVENT_NAME ?? ''))
+    return `Event ${env.GITHUB_EVENT_NAME ?? 'unknown'}: validation only, nothing uploaded. Furio Cloud receives the manifest on pushes to ${target}.`;
   const ref = env.GITHUB_REF?.replace(/^refs\/(heads|tags)\//, '') ?? 'unknown ref';
-  return `${env.GITHUB_EVENT_NAME === 'push' ? 'Push' : `Event ${env.GITHUB_EVENT_NAME ?? 'unknown'}`} on \`${ref}\`, not ${target}: validation only, nothing uploaded. To upload, trigger the workflow on pushes to ${branch ? `\`${branch}\`` : 'the default branch'}.`;
+  return `${env.GITHUB_EVENT_NAME === 'push' ? 'Push' : `Event ${env.GITHUB_EVENT_NAME}`} on \`${ref}\`, not ${target}: validation only, nothing uploaded. To upload, trigger the workflow on pushes to ${branch ? `\`${branch}\`` : 'the default branch'}.`;
 }
 
 export function buildArgs(env: NodeJS.ProcessEnv, event: GitHubEvent = {}): string[] {
@@ -124,12 +131,30 @@ export function outFile(env: NodeJS.ProcessEnv): string {
   return out.endsWith('.json') ? out : join(out, 'model.json');
 }
 
+/**
+ * A value that comes from the repos (an id, a file name, a message) as plain text on the summary
+ * page: Markdown or HTML in it must not become a link, an image or a table row of its own.
+ */
+function text(value: string): string {
+  return value.replace(/\s+/g, ' ').replace(/[\\`*_[\]<>&|~$]/g, '\\$&');
+}
+
+/** The same as inline code, where nothing can be escaped: a backtick would end the span early. */
+function code(value: string): string {
+  return `\`${value.replace(/[`\s]+/g, ' ')}\``;
+}
+
+/** Linked only to a plain web address: anything else in it could close the link and go on. */
+function link(label: string, url: string | undefined): string {
+  return url && /^https?:\/\/[^\s<>()\\]+$/i.test(url) ? `[${text(label)}](${url})` : text(label);
+}
+
 /** Markdown for the job summary page of a build. */
 export function buildSummary(model: Model): string {
   const declared = model.components.filter((c) => !c.ghost);
   const ghosts = model.components.filter((c) => c.ghost);
   const lines = [
-    `## Furio: workspace \`${model.workspace.id}\``,
+    `## Furio: workspace ${code(model.workspace.id)}`,
     '',
     `${declared.length} components, ${model.relations.length} relations, ${model.diagrams.length} diagrams` +
       (ghosts.length ? `, ${ghosts.length} ghost components` : '') +
@@ -139,7 +164,7 @@ export function buildSummary(model: Model): string {
     '| --- | --- | --- | --- | --- |',
     ...model.repos.map(
       (r) =>
-        `| ${r.url ? `[${r.id}](${r.url})` : r.id} | ${r.project ?? ''} | ${
+        `| ${link(r.id, r.url)} | ${text(r.project ?? '')} | ${
           r.status === 'skipped' ? `skipped (${r.skipReason})` : r.status
         } | ${r.errors} | ${r.warnings} |`,
     ),
@@ -147,9 +172,9 @@ export function buildSummary(model: Model): string {
   if (model.issues.length) {
     lines.push('', '### Issues', '');
     for (const i of model.issues) {
-      const where = i.line ? `${i.file}:${i.line}` : i.file;
+      const where = text(i.line ? `${i.file}:${i.line}` : i.file);
       lines.push(
-        `- **${i.severity}** \`${i.repo}\` ${where}: ${i.message}${i.hint ? ` ${i.hint}` : ''}`,
+        `- **${i.severity}** ${code(i.repo)} ${where}: ${text(i.message)}${i.hint ? ` ${text(i.hint)}` : ''}`,
       );
     }
   }

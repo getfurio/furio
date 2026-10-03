@@ -4,18 +4,21 @@ import { createPortal } from 'react-dom';
 
 /**
  * A diagram at full screen: zoom with the buttons, the wheel or a pinch, drag to move, Esc or
- * the close button to leave. It shows the SVG already rendered (and sanitized) on the page.
+ * the close button to leave. It shows a copy of the SVG already rendered (and sanitized) on the
+ * page: the nodes themselves, because their HTML read back and parsed again can come out different.
  */
 export function DiagramViewer({
-  svg,
+  diagram,
   title,
   onClose,
 }: {
-  svg: string;
+  /** The diagram as it is on the page. */
+  diagram: Element;
   title: string;
   onClose: () => void;
 }) {
   const stage = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -35,6 +38,7 @@ export function DiagramViewer({
   };
 
   useEffect(() => {
+    content.current?.replaceChildren(diagram.cloneNode(true));
     fit();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -151,8 +155,8 @@ export function DiagramViewer({
       >
         <div
           className="viewer-content"
+          ref={content}
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
-          dangerouslySetInnerHTML={{ __html: svg }}
         />
       </div>
     </div>,
