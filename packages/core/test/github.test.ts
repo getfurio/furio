@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -185,6 +185,82 @@ describe('collectFromGitHub', () => {
     expect(readFileSync(join(outDir, 'api/.architecture/architecture.yaml'), 'utf8')).toContain(
       'project: shop',
     );
+  });
+
+  it('follows pages on the host of the API only, where the token belongs', async () => {
+    const { fetch, calls } = fakeGitHub({
+      '/orgs/acme/repos?type=all&per_page=100': () =>
+        new Response('[]', {
+          headers: { link: '<https://elsewhere.test/orgs/acme/repos?page=2>; rel="next"' },
+        }),
+    });
+    const outDir = mkdtempSync(join(tmpdir(), 'furio-collect-test-'));
+    const promise = collectFromGitHub({ owner: 'acme', token: 't0k', outDir, apiUrl: API, fetch });
+    await expect(promise).rejects.toThrow(GitHubError);
+    await expect(promise).rejects.toThrow(/another host \(https:\/\/elsewhere\.test/);
+    expect(calls.every((c) => c.url.startsWith(API))).toBe(true);
+  });
+
+  it('writes nothing outside the folder of a repo', async () => {
+    const escape = (path: string) => ({ path, type: 'blob', sha: 'f', size: 10 });
+    const { fetch, calls } = fakeGitHub({
+      '/orgs/acme/repos?type=all&per_page=100': () =>
+        new Response(
+          JSON.stringify([
+            {
+              name: 'api',
+              full_name: 'acme/api',
+              html_url: 'https://github.com/acme/api',
+              default_branch: 'main',
+              archived: false,
+            },
+          ]),
+        ),
+      '/repos/acme/api/git/trees/arch?recursive=1': () =>
+        new Response(
+          JSON.stringify({
+            truncated: false,
+            tree: [
+              { path: 'architecture.yaml', type: 'blob', sha: 'm', size: 40 },
+              escape('../../outside.md'),
+              escape('diagrams/../../../outside.md'),
+              escape('..\\..\\outside.md'),
+            ],
+          }),
+        ),
+    });
+    const outDir = mkdtempSync(join(tmpdir(), 'furio-collect-test-'));
+    await collectFromGitHub({
+      owner: 'acme',
+      outDir: join(outDir, 'collected'),
+      apiUrl: API,
+      fetch,
+    });
+    expect(calls.filter((c) => c.url.includes('/git/blobs/')).map((c) => c.url)).toEqual([
+      `${API}/repos/acme/api/git/blobs/m`,
+    ]);
+    expect(readdirSync(outDir)).toEqual(['collected']);
+    expect(readdirSync(join(outDir, 'collected'))).toEqual(['api']);
+  });
+
+  it('refuses a repo name that is a path', async () => {
+    const { fetch } = fakeGitHub({
+      '/orgs/acme/repos?type=all&per_page=100': () =>
+        new Response(
+          JSON.stringify([
+            {
+              name: '../api',
+              full_name: 'acme/api',
+              html_url: 'https://github.com/acme/api',
+              default_branch: 'main',
+              archived: false,
+            },
+          ]),
+        ),
+    });
+    const outDir = mkdtempSync(join(tmpdir(), 'furio-collect-test-'));
+    const promise = collectFromGitHub({ owner: 'acme', outDir, apiUrl: API, fetch });
+    await expect(promise).rejects.toThrow(/"\.\.\/api" is not a repo name/);
   });
 
   it('explains authentication failures', async () => {

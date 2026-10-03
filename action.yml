@@ -43,7 +43,7 @@ inputs:
     description: 'output furio, pull requests: token used to post the architecture comment (needs "pull-requests: write"). Default: the workflow token.'
     default: ${{ github.token }}
   furio-url:
-    description: 'output furio: Furio Cloud address. Default https://getfurio.com.'
+    description: 'output furio: Furio Cloud address, https only. Default https://getfurio.com.'
     default: ''
   strict:
     description: 'Fail on warnings (validate) or on invalid repos (build).'

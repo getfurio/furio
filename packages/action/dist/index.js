@@ -1002,14 +1002,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text2, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text3, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text2;
+        return text3;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text2.length <= endStep)
-        return text2;
+      if (text3.length <= endStep)
+        return text3;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1026,14 +1026,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text2, i, indent.length);
+        i = consumeMoreIndentedLines(text3, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text2[i += 1]; ) {
+      for (let ch; ch = text3[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text2[i + 1]) {
+          switch (text3[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -1050,12 +1050,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text2, i, indent.length);
+            i = consumeMoreIndentedLines(text3, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text2[i + 1];
+            const next = text3[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -1067,12 +1067,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text2[i += 1];
+                ch = text3[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text2;
+                return text3;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1087,39 +1087,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text2;
+        return text3;
       if (onFold)
         onFold();
-      let res = text2.slice(0, folds[0]);
+      let res = text3.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text2.length;
+        const end2 = folds[i2 + 1] || text3.length;
         if (fold === 0)
           res = `
-${indent}${text2.slice(0, end2)}`;
+${indent}${text3.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text2[fold]}\\`;
+            res += `${text3[fold]}\\`;
           res += `
-${indent}${text2.slice(fold + 1, end2)}`;
+${indent}${text3.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text2, i, indent) {
+    function consumeMoreIndentedLines(text3, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text2[start];
+      let ch = text3[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text2[++i];
+          ch = text3[++i];
         } else {
           do {
-            ch = text2[++i];
+            ch = text3[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text2[start];
+          ch = text3[start];
         }
       }
       return end;
@@ -1182,8 +1182,8 @@ var require_stringifyString = __commonJS({
             case "u":
               {
                 str += json2.slice(start, i);
-                const code = json2.substr(i + 2, 4);
-                switch (code) {
+                const code2 = json2.substr(i + 2, 4);
+                switch (code2) {
                   case "0000":
                     str += "\\0";
                     break;
@@ -1209,8 +1209,8 @@ var require_stringifyString = __commonJS({
                     str += "\\P";
                     break;
                   default:
-                    if (code.substr(0, 2) === "00")
-                      str += "\\x" + code.substr(2);
+                    if (code2.substr(0, 2) === "00")
+                      str += "\\x" + code2.substr(2);
                     else
                       str += json2.substr(i, 6);
                 }
@@ -3709,22 +3709,22 @@ var require_errors = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.1/node_modules/yaml/dist/errors.js"(exports) {
     "use strict";
     var YAMLError = class extends Error {
-      constructor(name, pos, code, message) {
+      constructor(name, pos, code2, message) {
         super();
         this.name = name;
-        this.code = code;
+        this.code = code2;
         this.message = message;
         this.pos = pos;
       }
     };
     var YAMLParseError = class extends YAMLError {
-      constructor(pos, code, message) {
-        super("YAMLParseError", pos, code, message);
+      constructor(pos, code2, message) {
+        super("YAMLParseError", pos, code2, message);
       }
     };
     var YAMLWarning = class extends YAMLError {
-      constructor(pos, code, message) {
-        super("YAMLWarning", pos, code, message);
+      constructor(pos, code2, message) {
+        super("YAMLWarning", pos, code2, message);
       }
     };
     var prettifyError2 = (src, lc) => (error62) => {
@@ -4633,7 +4633,7 @@ var require_resolve_flow_scalar = __commonJS({
       const { offset, type, source, end } = scalar;
       let _type;
       let value;
-      const _onError = (rel, code, msg) => onError(offset + rel, code, msg);
+      const _onError = (rel, code2, msg) => onError(offset + rel, code2, msg);
       switch (type) {
         case "scalar":
           _type = Scalar.Scalar.PLAIN;
@@ -4831,9 +4831,9 @@ var require_resolve_flow_scalar = __commonJS({
     function parseCharCode(source, offset, length, onError) {
       const cc = source.substr(offset, length);
       const ok = cc.length === length && /^[0-9a-fA-F]+$/.test(cc);
-      const code = ok ? parseInt(cc, 16) : NaN;
+      const code2 = ok ? parseInt(cc, 16) : NaN;
       try {
-        return String.fromCodePoint(code);
+        return String.fromCodePoint(code2);
       } catch {
         const raw = source.substr(offset - 2, length + 2);
         onError(offset - 2, "BAD_DQ_ESCAPE", `Invalid escape sequence ${raw}`);
@@ -5155,12 +5155,12 @@ var require_composer = __commonJS({
         this.prelude = [];
         this.errors = [];
         this.warnings = [];
-        this.onError = (source, code, message, warning) => {
+        this.onError = (source, code2, message, warning) => {
           const pos = getErrorPos(source);
           if (warning)
-            this.warnings.push(new errors.YAMLWarning(pos, code, message));
+            this.warnings.push(new errors.YAMLWarning(pos, code2, message));
           else
-            this.errors.push(new errors.YAMLParseError(pos, code, message));
+            this.errors.push(new errors.YAMLParseError(pos, code2, message));
         };
         this.directives = new directives.Directives({ version: options.version || "1.2" });
         this.options = options;
@@ -5322,12 +5322,12 @@ var require_cst_scalar = __commonJS({
     var stringifyString = require_stringifyString();
     function resolveAsScalar(token, strict = true, onError) {
       if (token) {
-        const _onError = (pos, code, message) => {
+        const _onError = (pos, code2, message) => {
           const offset = typeof pos === "number" ? pos : Array.isArray(pos) ? pos[0] : pos.offset;
           if (onError)
-            onError(offset, code, message);
+            onError(offset, code2, message);
           else
-            throw new errors.YAMLParseError([offset, offset + 1], code, message);
+            throw new errors.YAMLParseError([offset, offset + 1], code2, message);
         };
         switch (token.type) {
           case "scalar":
@@ -7396,8 +7396,8 @@ function countBySeverity(diagnostics) {
   return { errors, warnings };
 }
 var UNPRINTABLE = /[\p{Cc}\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/gu;
-function printable(text2, max = 600) {
-  const escaped = text2.replace(
+function printable(text3, max = 600) {
+  const escaped = text3.replace(
     UNPRINTABLE,
     (char) => char === "\n" ? "\\n" : char === "\r" ? "\\r" : char === "	" ? "\\t" : `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`
   );
@@ -10575,12 +10575,12 @@ function isIso7064Mod97(iban3) {
   let remainder = 0;
   const len = iban3.length;
   for (let i = 4; i < len; i++) {
-    const code = iban3.charCodeAt(i);
-    remainder = (code >= 65 ? remainder * 100 + (code - 55) : remainder * 10 + (code - 48)) % 97;
+    const code2 = iban3.charCodeAt(i);
+    remainder = (code2 >= 65 ? remainder * 100 + (code2 - 55) : remainder * 10 + (code2 - 48)) % 97;
   }
   for (let i = 0; i < 4; i++) {
-    const code = iban3.charCodeAt(i);
-    remainder = (code >= 65 ? remainder * 100 + (code - 55) : remainder * 10 + (code - 48)) % 97;
+    const code2 = iban3.charCodeAt(i);
+    remainder = (code2 >= 65 ? remainder * 100 + (code2 - 55) : remainder * 10 + (code2 - 48)) % 97;
   }
   return remainder === 1;
 }
@@ -16796,8 +16796,8 @@ function ko_default() {
 }
 
 // ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/locales/lt.js
-var capitalizeFirstCharacter = (text2) => {
-  return text2.charAt(0).toUpperCase() + text2.slice(1);
+var capitalizeFirstCharacter = (text3) => {
+  return text3.charAt(0).toUpperCase() + text3.slice(1);
 };
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
@@ -20498,12 +20498,12 @@ function compileFn(schema, options) {
   doc.write(outputAccessor === null ? `return true;` : `return ${outputAccessor};`);
   const constantNames = ["INVALID", ...ctx.constants.keys()];
   const constantValues = [INVALID, ...ctx.constants.values()];
-  const code = doc.content.join("\n");
+  const code2 = doc.content.join("\n");
   const fullCode = options?.debug ? constantNames.length > 0 ? `// Constants: ${constantNames.join(", ")}
-${code}` : code : "";
+${code2}` : code2 : "";
   const F = Function;
   const factoryCode = `return (input) => {
-${code}
+${code2}
 }`;
   let fn;
   try {
@@ -27284,9 +27284,9 @@ var ManifestSchema = external_exports.strictObject({
 // ../core/src/yaml-source.ts
 var import_yaml = __toESM(require_dist(), 1);
 var YamlSource = class {
-  constructor(text2) {
-    this.text = text2;
-    this.doc = (0, import_yaml.parseDocument)(text2, { lineCounter: this.lines, prettyErrors: false });
+  constructor(text3) {
+    this.text = text3;
+    this.doc = (0, import_yaml.parseDocument)(text3, { lineCounter: this.lines, prettyErrors: false });
   }
   text;
   doc;
@@ -27862,12 +27862,12 @@ var ManifestCheck = class {
           );
         } else {
           if (read.problem === "symlink") this.links.add(read.link);
-          const { code, message, hint } = unreadable(
+          const { code: code2, message, hint } = unreadable(
             read,
             `diagrams[${index}].file is "${diagram.file}", but ${ARCHITECTURE_DIR}/${key}`,
             key
           );
-          this.addAt("error", code, message, at("file"), hint);
+          this.addAt("error", code2, message, at("file"), hint);
         }
       } else {
         const content = read.text;
@@ -27906,14 +27906,14 @@ var ManifestCheck = class {
         file: join2(this.architectureDir, file2)
       });
     }
-    for (const link of links) {
-      if (this.links.has(link)) continue;
+    for (const link2 of links) {
+      if (this.links.has(link2)) continue;
       this.diagnostics.push({
         severity: "warning",
         code: "symlink-not-followed",
-        message: `${ARCHITECTURE_DIR}/${link} is a symbolic link: Furio does not follow links, so the map ignores it.`,
+        message: `${ARCHITECTURE_DIR}/${link2} is a symbolic link: Furio does not follow links, so the map ignores it.`,
         hint: `Put the file itself in ${ARCHITECTURE_DIR}/, or delete the link.`,
-        file: join2(this.architectureDir, link)
+        file: join2(this.architectureDir, link2)
       });
     }
   }
@@ -27939,14 +27939,14 @@ var ManifestCheck = class {
     });
     return out || "manifest";
   }
-  addAt(severity, code, message, path, hint, key) {
+  addAt(severity, code2, message, path, hint, key) {
     const pos = this.source.positionOf(path, key);
-    this.add(severity, code, message, hint, pos, key ? [...path, key] : path);
+    this.add(severity, code2, message, hint, pos, key ? [...path, key] : path);
   }
-  add(severity, code, message, hint, pos, path) {
+  add(severity, code2, message, hint, pos, path) {
     this.diagnostics.push({
       severity,
-      code,
+      code: code2,
       message,
       ...hint ? { hint } : {},
       file: this.file,
@@ -28240,6 +28240,9 @@ var COLLECTED_EXTENSIONS = /\.(ya?ml|mmd|md)$/i;
 var MAX_FILES_PER_REPO = 300;
 var GitHubError = class extends Error {
 };
+function staysInside(path) {
+  return path.split(/[\\/]/).every((part) => part && part !== "." && part !== "..");
+}
 async function collectFromGitHub(options) {
   const api = new GitHubApi(options);
   const repos = await api.listRepos(options.owner);
@@ -28247,6 +28250,11 @@ async function collectFromGitHub(options) {
   const skipped = [];
   let unlisted = 0;
   await mapLimit(repos, options.concurrency ?? 6, async (repo) => {
+    if (/[\\/]/.test(repo.name) || !staysInside(repo.name)) {
+      throw new GitHubError(
+        `GitHub API: "${printable(repo.name)}" is not a repo name; nothing was written for it.`
+      );
+    }
     const base = { id: repo.full_name, url: repo.html_url };
     const skip = (reason) => {
       if (repo.private && !options.listPrivate) unlisted++;
@@ -28268,7 +28276,7 @@ async function collectFromGitHub(options) {
     );
     const depth = (path) => path.split("/").length;
     const files = tree.tree.filter(
-      (e) => e.type === "blob" && COLLECTED_EXTENSIONS.test(e.path) && (e.size ?? 0) <= MAX_FILE_SIZE
+      (e) => e.type === "blob" && COLLECTED_EXTENSIONS.test(e.path) && (e.size ?? 0) <= MAX_FILE_SIZE && staysInside(e.path)
     ).sort((a, b) => depth(a.path) - depth(b.path) || a.path.localeCompare(b.path)).slice(0, MAX_FILES_PER_REPO);
     const dir = join3(options.outDir, repo.name);
     for (const file2 of files) {
@@ -28306,9 +28314,21 @@ var GitHubApi = class {
       if (response.status === 404 && allow404) return void 0;
       await this.ensureOk(response, url2);
       out.push(...await response.json());
-      url2 = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get("link") ?? "")?.[1];
+      url2 = this.nextPage(response, url2);
     }
     return out;
+  }
+  /** The next page, on the host of the API only: the token goes with every request. */
+  nextPage(response, from) {
+    const link2 = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get("link") ?? "")?.[1];
+    if (!link2) return void 0;
+    const next = URL.canParse(link2, from) ? new URL(link2, from) : void 0;
+    if (!next || next.origin !== new URL(this.base).origin) {
+      throw new GitHubError(
+        `GitHub API: the page after ${from.slice(this.base.length)} is on another host (${printable(link2)}). Not followed: the token is sent to ${this.base} only.`
+      );
+    }
+    return next.href;
   }
   async get(path, allow = {}) {
     const url2 = this.base + path;
@@ -28369,7 +28389,7 @@ function location(d, cwd) {
   return `${file2}:${d.line}:${d.column ?? 1}`;
 }
 function formatPretty(results, options) {
-  const paint = (style, text2) => options.color ? styleText(style, text2) : text2;
+  const paint = (style, text3) => options.color ? styleText(style, text3) : text3;
   const lines = [];
   for (const result of results) {
     for (const d of result.diagnostics) {
@@ -28433,10 +28453,10 @@ function formatGithubAnnotations(results, cwd) {
       if (d.line !== void 0) props.push(`line=${d.line}`);
       if (d.column !== void 0) props.push(`col=${d.column}`);
       props.push(`title=${escapeProp(`Furio: ${d.code}`)}`);
-      const text2 = d.hint ? `${d.message}
+      const text3 = d.hint ? `${d.message}
 ${d.hint}` : d.message;
       out.push(
-        `::${d.severity === "error" ? "error" : "warning"} ${props.join(",")}::${escapeData(text2)}`
+        `::${d.severity === "error" ? "error" : "warning"} ${props.join(",")}::${escapeData(text3)}`
       );
     }
   }
@@ -28446,7 +28466,7 @@ function plural2(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 function formatBuild(model, options) {
-  const paint = (style, text2) => options.color ? styleText(style, text2) : text2;
+  const paint = (style, text3) => options.color ? styleText(style, text3) : text3;
   const lines = [];
   for (const issue2 of model.issues) {
     const label = issue2.severity === "error" ? paint(["red", "bold"], "error") : paint(["yellow", "bold"], "warning");
@@ -28891,7 +28911,8 @@ Upload options
   --repo <owner/name>            The repo on GitHub (default: GITHUB_REPOSITORY, else the
                                  origin remote)
   --commit <sha>                 The commit uploaded (default: GITHUB_SHA)
-  --url <url>                    Furio Cloud (default: FURIO_URL or ${DEFAULT_FURIO_URL})
+  --url <url>                    Furio Cloud, over https (default: FURIO_URL or
+                                 ${DEFAULT_FURIO_URL})
   --dry-run                      Send nothing: validate, ask Furio Cloud whether it would
                                  accept the upload, and list the files
   --preview <file>               Pull requests: write to <file> the Markdown comment with what
@@ -29006,15 +29027,15 @@ async function validate2(paths, values, io) {
 }
 async function loadModel(location2, io) {
   try {
-    let text2;
+    let text3;
     if (/^https?:\/\//.test(location2)) {
       const response = await (io.fetch ?? fetch)(location2, { signal: AbortSignal.timeout(1e4) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      text2 = await response.text();
+      text3 = await response.text();
     } else {
-      text2 = readFileSync3(resolve3(io.cwd, location2), "utf8");
+      text3 = readFileSync3(resolve3(io.cwd, location2), "utf8");
     }
-    const model = JSON.parse(text2);
+    const model = JSON.parse(text3);
     if (model.modelVersion !== 1 || !Array.isArray(model.components)) {
       throw new Error("not a Furio model (version 1)");
     }
@@ -29037,28 +29058,28 @@ async function build(paths, values, io) {
   let skipped = [];
   let unlisted = 0;
   let checkout;
-  if (values.github) {
-    checkout = mkdtempSync(join6(tmpdir(), "furio-collect-"));
-    const token = io.env.FURIO_TOKEN || io.env.GITHUB_TOKEN || void 0;
-    const collected = await collectFromGitHub({
-      owner: values.github,
-      outDir: checkout,
-      listPrivate: values["list-private"],
-      ...token ? { token } : {},
-      ...io.fetch ? { fetch: io.fetch } : {},
-      ...io.env.GITHUB_API_URL ? { apiUrl: io.env.GITHUB_API_URL } : {}
-    });
-    sources = collected.sources;
-    skipped = collected.skipped;
-    unlisted = collected.unlisted;
-  } else {
-    const dirs = paths.length ? paths : ["."];
-    sources = dirs.map((dir) => {
-      const full = resolve3(io.cwd, dir);
-      return { id: `${workspace}/${basename3(full)}`, dir: full };
-    });
-  }
   try {
+    if (values.github) {
+      checkout = mkdtempSync(join6(tmpdir(), "furio-collect-"));
+      const token = io.env.FURIO_TOKEN || io.env.GITHUB_TOKEN || void 0;
+      const collected = await collectFromGitHub({
+        owner: values.github,
+        outDir: checkout,
+        listPrivate: values["list-private"],
+        ...token ? { token } : {},
+        ...io.fetch ? { fetch: io.fetch } : {},
+        ...io.env.GITHUB_API_URL ? { apiUrl: io.env.GITHUB_API_URL } : {}
+      });
+      sources = collected.sources;
+      skipped = collected.skipped;
+      unlisted = collected.unlisted;
+    } else {
+      const dirs = paths.length ? paths : ["."];
+      sources = dirs.map((dir) => {
+        const full = resolve3(io.cwd, dir);
+        return { id: `${workspace}/${basename3(full)}`, dir: full };
+      });
+    }
     const { model } = buildModel(sources, { workspace, generatorVersion: VERSION, skipped });
     const out = resolve3(io.cwd, values.out ?? "furio-model.json");
     const file2 = out.endsWith(".json") ? out : join6(out, "model.json");
@@ -29102,7 +29123,7 @@ async function uploadCommand(paths, values, io) {
     root,
     repo,
     ...commit ? { commit } : {},
-    url: values.url ?? io.env.FURIO_URL ?? DEFAULT_FURIO_URL,
+    url: furioUrl(values.url ?? io.env.FURIO_URL ?? DEFAULT_FURIO_URL),
     ...token ? { token } : {},
     dryRun,
     ...values.preview ? { previewOut: resolve3(io.cwd, values.preview) } : {},
@@ -29114,6 +29135,14 @@ async function uploadCommand(paths, values, io) {
     stdout: io.stdout,
     stderr: io.stderr
   });
+}
+function furioUrl(value) {
+  const url2 = URL.canParse(value) ? new URL(value) : void 0;
+  const local = /^(localhost|.+\.localhost|127\.0\.0\.1|\[::1\])$/.test(url2?.hostname ?? "");
+  if (url2?.protocol === "https:" || url2?.protocol === "http:" && local) return value;
+  throw new UsageError(
+    `--url (or FURIO_URL) must be an https address, got "${value}": the upload token would travel unencrypted. Plain http is accepted for localhost only.`
+  );
 }
 function init(paths, values, io) {
   if (paths.length > 1) throw new UsageError("furio init takes one path.");
@@ -29166,9 +29195,10 @@ function readEvent(env) {
     return {};
   }
 }
+var UPLOAD_EVENTS = ["push", "workflow_dispatch", "schedule"];
 function onDefaultBranch(env, event) {
   const branch = event.repository?.default_branch;
-  return !!branch && env.GITHUB_EVENT_NAME !== "pull_request" && env.GITHUB_EVENT_NAME !== "pull_request_target" && env.GITHUB_REF === `refs/heads/${branch}`;
+  return !!branch && UPLOAD_EVENTS.includes(env.GITHUB_EVENT_NAME ?? "") && env.GITHUB_REF === `refs/heads/${branch}`;
 }
 function uploadNote(env, event) {
   if (input2(env, "output") !== "furio" || (input2(env, "command") || "validate") !== "validate")
@@ -29180,8 +29210,10 @@ function uploadNote(env, event) {
     return `Pull request: checked, and compared with the map for an architecture comment (Furio Cloud Business). Furio Cloud receives the manifest on pushes to ${target}.`;
   if (env.GITHUB_EVENT_NAME === "pull_request_target")
     return `Pull request: validation only. Furio Cloud receives the manifest on pushes to ${target}.`;
+  if (!UPLOAD_EVENTS.includes(env.GITHUB_EVENT_NAME ?? ""))
+    return `Event ${env.GITHUB_EVENT_NAME ?? "unknown"}: validation only, nothing uploaded. Furio Cloud receives the manifest on pushes to ${target}.`;
   const ref2 = env.GITHUB_REF?.replace(/^refs\/(heads|tags)\//, "") ?? "unknown ref";
-  return `${env.GITHUB_EVENT_NAME === "push" ? "Push" : `Event ${env.GITHUB_EVENT_NAME ?? "unknown"}`} on \`${ref2}\`, not ${target}: validation only, nothing uploaded. To upload, trigger the workflow on pushes to ${branch ? `\`${branch}\`` : "the default branch"}.`;
+  return `${env.GITHUB_EVENT_NAME === "push" ? "Push" : `Event ${env.GITHUB_EVENT_NAME}`} on \`${ref2}\`, not ${target}: validation only, nothing uploaded. To upload, trigger the workflow on pushes to ${branch ? `\`${branch}\`` : "the default branch"}.`;
 }
 function buildArgs(env, event = {}) {
   const command = input2(env, "command") || "validate";
@@ -29240,26 +29272,35 @@ function outFile(env) {
   const out = input2(env, "out") || "_furio";
   return out.endsWith(".json") ? out : join7(out, "model.json");
 }
+function text2(value) {
+  return value.replace(/\s+/g, " ").replace(/[\\`*_[\]<>&|~$]/g, "\\$&");
+}
+function code(value) {
+  return `\`${value.replace(/[`\s]+/g, " ")}\``;
+}
+function link(label, url2) {
+  return url2 && /^https?:\/\/[^\s<>()\\]+$/i.test(url2) ? `[${text2(label)}](${url2})` : text2(label);
+}
 function buildSummary(model) {
   const declared = model.components.filter((c) => !c.ghost);
   const ghosts = model.components.filter((c) => c.ghost);
   const lines = [
-    `## Furio: workspace \`${model.workspace.id}\``,
+    `## Furio: workspace ${code(model.workspace.id)}`,
     "",
     `${declared.length} components, ${model.relations.length} relations, ${model.diagrams.length} diagrams` + (ghosts.length ? `, ${ghosts.length} ghost components` : "") + ".",
     "",
     "| Repo | Project | Status | Errors | Warnings |",
     "| --- | --- | --- | --- | --- |",
     ...model.repos.map(
-      (r) => `| ${r.url ? `[${r.id}](${r.url})` : r.id} | ${r.project ?? ""} | ${r.status === "skipped" ? `skipped (${r.skipReason})` : r.status} | ${r.errors} | ${r.warnings} |`
+      (r) => `| ${link(r.id, r.url)} | ${text2(r.project ?? "")} | ${r.status === "skipped" ? `skipped (${r.skipReason})` : r.status} | ${r.errors} | ${r.warnings} |`
     )
   ];
   if (model.issues.length) {
     lines.push("", "### Issues", "");
     for (const i of model.issues) {
-      const where = i.line ? `${i.file}:${i.line}` : i.file;
+      const where = text2(i.line ? `${i.file}:${i.line}` : i.file);
       lines.push(
-        `- **${i.severity}** \`${i.repo}\` ${where}: ${i.message}${i.hint ? ` ${i.hint}` : ""}`
+        `- **${i.severity}** ${code(i.repo)} ${where}: ${text2(i.message)}${i.hint ? ` ${text2(i.hint)}` : ""}`
       );
     }
   }
@@ -29320,9 +29361,9 @@ async function main() {
   if (args[0] === "upload" && !uploadToken && !preview)
     throw new Error("output: furio needs upload-token (e.g. secrets.FURIO_UPLOAD_TOKEN).");
   if (preview) rmSync2(commentFile(env), { force: true });
-  const code = await run(args, {
-    stdout: (text2) => process.stdout.write(text2),
-    stderr: (text2) => process.stderr.write(text2),
+  const code2 = await run(args, {
+    stdout: (text3) => process.stdout.write(text3),
+    stderr: (text3) => process.stderr.write(text3),
     cwd: env.GITHUB_WORKSPACE || process.cwd(),
     env: {
       ...env,
@@ -29366,7 +29407,7 @@ async function main() {
       }
     }
   }
-  process.exitCode = code;
+  process.exitCode = code2;
 }
 if (process.env.GITHUB_ACTIONS === "true" && !process.env.VITEST) {
   main().catch((error62) => {
