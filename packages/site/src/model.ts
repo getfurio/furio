@@ -54,6 +54,13 @@ export async function loadModel(url = './model.json'): Promise<Model> {
 }
 
 export function indexModel(model: Model): Site {
+  // A repo's address comes with the model and ends up in links: kept only if it is a web address.
+  model = {
+    ...model,
+    repos: model.repos.map(({ url, ...repo }) =>
+      url && /^https?:\/\//i.test(url) ? { ...repo, url } : repo,
+    ),
+  };
   const byKey = new Map(model.components.map((c) => [c.key, c]));
   const incoming = new Map<string, ModelRelation[]>();
   const outgoing = new Map<string, ModelRelation[]>();

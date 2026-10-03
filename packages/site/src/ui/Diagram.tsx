@@ -109,7 +109,7 @@ function MermaidBlock({ source, title }: { source: string; title: string }) {
     };
   }, [id, source, theme, palette]);
 
-  const [enlarged, setEnlarged] = useState<string | null>(null);
+  const [enlarged, setEnlarged] = useState<Element | null>(null);
 
   if (error)
     return <pre className="diagram-error">This Mermaid diagram does not render: {error}</pre>;
@@ -119,13 +119,15 @@ function MermaidBlock({ source, title }: { source: string; title: string }) {
       <button
         className="icon-button enlarge"
         type="button"
-        onClick={() => host.current?.innerHTML && setEnlarged(host.current.innerHTML)}
+        onClick={() => setEnlarged(host.current?.querySelector('svg') ?? null)}
         aria-label={`Enlarge ${title}`}
         data-tip="Enlarge"
       >
         <Maximize2 size={15} aria-hidden />
       </button>
-      {enlarged && <DiagramViewer svg={enlarged} title={title} onClose={() => setEnlarged(null)} />}
+      {enlarged && (
+        <DiagramViewer diagram={enlarged} title={title} onClose={() => setEnlarged(null)} />
+      )}
     </div>
   );
 }
