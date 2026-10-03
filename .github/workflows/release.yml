@@ -66,6 +66,10 @@ jobs:
           npx @getfurio/cli --version
           npx @getfurio/cli validate "$GITHUB_WORKSPACE/examples/demo/shop-api"
 
+      # The very command of the publish job, without publishing: it fails here, not after the approval.
+      - name: Dry run of the publish command
+        run: cd "$RUNNER_TEMP" && npm publish ./release/getfurio-cli-*.tgz --access public --dry-run
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tarball
@@ -92,5 +96,6 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      # The path starts with ./ on purpose: npm reads "release/x.tgz" as a repo on GitHub.
       - name: Publish
-        run: npm publish release/getfurio-cli-*.tgz --provenance --access public
+        run: npm publish ./release/getfurio-cli-*.tgz --provenance --access public
