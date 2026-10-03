@@ -32,6 +32,12 @@ describe('guard: what it looks for', () => {
       ),
     ).toEqual([]);
     expect(rules('npx @getfurio/cli@latest, pnpm@11.9.0, actions/checkout@v7.0.1')).toEqual([]);
+    // What a bot signs its commits with.
+    expect(rules('Signed-off-by: dependabot[bot] <support@github.com>')).toEqual([]);
+    expect(rules('by jane.doe@company.io', { general: false })).toEqual([]);
+    expect(rules('the secret project', { general: false, terms: ['secret project'] })).toEqual([
+      'private term',
+    ]);
   });
 
   it('checks generated and third-party files for private terms only', () => {
@@ -125,9 +131,14 @@ describe('guard: in a repo', () => {
     expect(push.status).toBe(1);
     expect(push.stderr).toContain('author email is not a GitHub noreply address');
 
-    const ci = guard(['ci'], '', { PRIVATE_TERMS: 'first', PR_TITLE: 'About the first thing' });
+    const ci = guard(['ci'], '', {
+      PRIVATE_TERMS: 'first',
+      PR_TITLE: 'About the first thing',
+      PR_BODY: 'Release notes of a library, by its author <dev@library.io>',
+    });
     expect(ci.status).toBe(1);
     expect(ci.stderr).toContain('message, line 1  private term');
     expect(ci.stderr).toContain('pull request title, line 1  private term');
+    expect(ci.stderr).not.toContain('pull request description');
   });
 });
