@@ -31,7 +31,7 @@ const HOME = /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]+)/g;
 const NOBODY = new Set(['runner', 'user', 'username', 'name', 'you', 'me']);
 const EMAIL = /[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
 const NOT_A_PERSON =
-  /^(?:noreply|no-reply|git)@|@(?:example\.(?:com|org|net)|users\.noreply\.github\.com)$/i;
+  /^(?:noreply|no-reply)@|@(?:example\.(?:com|org|net)|github\.com|users\.noreply\.github\.com)$/i;
 
 /** Whether commits may carry this address: GitHub's noreply addresses only. */
 export function isNoreply(email) {
@@ -55,15 +55,18 @@ export function loadTerms(env = process.env) {
     .filter((line) => line && !line.startsWith('#'));
 }
 
-/** What is wrong in a text, line by line: [{ rule, line }]. `path` says where the text lives. */
-export function scan(text, { path = '', terms = [] } = {}) {
+/**
+ * What is wrong in a text, line by line: [{ rule, line }]. `path` says where the text lives;
+ * `general: false` looks for the private terms only.
+ */
+export function scan(text, { path = '', terms = [], general = true } = {}) {
   const found = [];
   const vendored = VENDORED.test(path);
   const patterns = terms.filter((term) => !vendored || term.length >= 5).map(termPattern);
   text.split('\n').forEach((line, index) => {
     const add = (rule) => found.push({ rule, line: index + 1 });
     if (patterns.some((pattern) => pattern.test(line))) add('private term');
-    if (vendored) return;
+    if (vendored || !general) return;
     for (const [, name] of line.matchAll(HOME)) {
       if (!NOBODY.has(name.toLowerCase())) add('home folder');
     }
@@ -108,8 +111,10 @@ function scanDiff(diff, terms, where = '') {
   return problems;
 }
 
-function scanMessage(message, terms, where) {
-  return scan(message, { terms }).map(({ rule, line }) => `${where}, line ${line}  ${rule}`);
+function scanMessage(message, terms, where, general = true) {
+  return scan(message, { terms, general }).map(
+    ({ rule, line }) => `${where}, line ${line}  ${rule}`,
+  );
 }
 
 function scanCommit(sha, terms) {
@@ -176,8 +181,10 @@ function run(mode, args, env) {
     const problems = commitsOf(base ? `${base}..${head}` : head).flatMap((sha) =>
       scanCommit(sha, terms),
     );
-    problems.push(...scanMessage(env.PR_TITLE ?? '', terms, 'pull request title'));
-    problems.push(...scanMessage(env.PR_BODY ?? '', terms, 'pull request description'));
+    // The text of a pull request is not in the repo, and a bot's quotes the release notes of
+    // other projects, authors included: only the private terms are looked for.
+    problems.push(...scanMessage(env.PR_TITLE ?? '', terms, 'pull request title', false));
+    problems.push(...scanMessage(env.PR_BODY ?? '', terms, 'pull request description', false));
     return problems;
   }
   throw new Error('Usage: guard.mjs staged | message <file> | push <remote> | ci');
