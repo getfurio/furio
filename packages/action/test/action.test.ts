@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -140,6 +140,21 @@ describe('the committed map', () => {
     expect(readdirSync(site).sort()).toEqual(['assets', 'favicon.svg', 'index.html']);
     const assets = readdirSync(join(site, 'assets'));
     expect(assets.filter((name) => !/^[\w.-]+\.(js|css|woff2)$/.test(name))).toEqual([]);
+  });
+});
+
+describe('the guides', () => {
+  it('pin the Action to one release commit, the same in every example', () => {
+    const guides = join(import.meta.dirname, '../../../docs/guide');
+    const pins = readdirSync(guides).flatMap((file) =>
+      Array.from(
+        readFileSync(join(guides, file), 'utf8').matchAll(/getfurio\/furio@(\S+) # (v[\d.]+)/g),
+        ([, commit, version]) => `${commit} ${version}`,
+      ),
+    );
+    expect(pins.length).toBeGreaterThan(0);
+    expect([...new Set(pins)]).toHaveLength(1);
+    expect(pins[0]).toMatch(/^[0-9a-f]{40} v\d+\.\d+\.\d+$/);
   });
 });
 
