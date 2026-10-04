@@ -179,6 +179,7 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
   const length = useMemo(() => polylineLength(points), [points]);
   if (!data || points.length < 2) return null;
   const { relation } = data;
+  const nonCritical = relation.critical === false;
   const outside = (key: string) =>
     (lit.matches && !lit.matches.has(key)) || (lit.marks && !lit.marks[key]);
   const state = lit.edges.has(id)
@@ -192,17 +193,19 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
     <g className={`trace-group ${state}`} style={{ ['--len' as string]: length }}>
       {/* Presentation attributes as well as classes: exports (PNG/SVG) keep the layer colours. */}
       <path
-        className={`trace ${relation.type}`}
+        className={`trace ${relation.type} ${nonCritical ? 'is-non-critical' : ''}`}
         d={path}
         fill="none"
         stroke={LAYER_COLOR[relation.type]}
         strokeWidth={2.25}
-        strokeDasharray={DASHED.has(relation.type) ? '6 4' : undefined}
+        strokeDasharray={nonCritical ? DOTTED : DASHED.has(relation.type) ? '6 4' : undefined}
+        strokeLinecap={nonCritical ? 'round' : undefined}
       />
       <path className="trace-hit" d={path} fill="none" stroke="transparent">
         <title>
           {relation.from} {relation.type.replace(/_/g, ' ')} {relation.to}
           {relation.protocol ? ` (${relation.protocol})` : ''}
+          {nonCritical ? ' · non-critical' : ''}
         </title>
       </path>
       {palette === 'circuit' &&
@@ -258,6 +261,8 @@ const LAYER_COLOR: Record<string, string> = {
 };
 
 const DASHED = new Set(['depends_on', 'spawns']);
+/** A non-critical relation, whatever its layer: dots, like a net that is not routed in copper. */
+const DOTTED = '0.1 6';
 
 /**
  * The route drawn in the palette's manner: Furio rounds the bends, Blueprint keeps them sharp like

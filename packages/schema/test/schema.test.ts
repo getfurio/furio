@@ -65,6 +65,21 @@ describe('manifest schema', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('accepts critical on a relation, as a boolean and optional', () => {
+    const withRelation = (extra: object) => ({
+      version: 1,
+      project: 'shop',
+      components: [
+        { id: 'api', type: 'service' },
+        { id: 'audit-log', type: 'storage' },
+      ],
+      relations: [{ from: 'api', to: 'audit-log', type: 'writes', ...extra }],
+    });
+    for (const extra of [{}, { critical: false }, { critical: true }])
+      expect(ManifestSchema.safeParse(withRelation(extra)).success).toBe(true);
+    expect(ManifestSchema.safeParse(withRelation({ critical: 'no' })).success).toBe(false);
+  });
+
   it('rejects paths that leave the repo and statuses it does not know', () => {
     const withComponent = (extra: object) => ({
       version: 1,

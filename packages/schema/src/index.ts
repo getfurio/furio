@@ -154,6 +154,10 @@ export const RelationSchema = z
     type: z.enum(RELATION_TYPES),
     protocol: z.string().min(1).optional().meta({ description: 'e.g. http, grpc, amqp.' }),
     description: z.string().optional(),
+    critical: z.boolean().optional().meta({
+      description:
+        'False when "from" keeps working if "to" goes down (telemetry, logs, audit, analytics): the map draws the relation, the impact analysis does not follow it. Defaults to true.',
+    }),
   })
   .meta({ title: 'Relation' });
 
