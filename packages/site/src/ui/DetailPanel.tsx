@@ -304,6 +304,7 @@ function Relations({
                   {other}
                 </button>
                 {part?.ghost && <span className="ghost-tag">Not declared</span>}
+                {r.critical === false && <span className="non-critical-tag">Non-critical</span>}
                 {(r.protocol || r.description) && (
                   <span className="dp-sub">
                     {[r.protocol, r.description].filter(Boolean).join(' · ')}

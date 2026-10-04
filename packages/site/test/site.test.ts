@@ -15,6 +15,7 @@ import {
 import { readable } from '../src/graph/parts';
 import { splitMarkdown } from '../src/markdown';
 import { href, parseHash, parseView, serializeView } from '../src/router';
+import { makeRepo, manifest } from '../../core/test/helpers';
 
 const EXAMPLES = join(import.meta.dirname, '../../../examples/demo');
 const site = indexModel(
@@ -51,6 +52,75 @@ describe('impact', () => {
   it('treats consumers as depending on their queue', () => {
     const { distance } = impact(site, 'shop/orders-events', 'up');
     expect(distance.get('shop/invoice-worker')).toBe(1);
+  });
+});
+
+describe('non-critical relations', () => {
+  // A made-up system: the shop keeps selling when its collector is down, the dashboards do not.
+  const orders = indexModel(
+    buildModel(
+      [
+        {
+          id: 'acme/orders',
+          dir: makeRepo(
+            manifest(`version: 1
+project: orders
+owner: team-orders
+components:
+  - { id: storefront, type: frontend }
+  - { id: orders-api, type: service }
+  - { id: orders-db, type: database }
+  - { id: collector, type: service }
+  - { id: dashboards, type: frontend }
+relations:
+  - { from: storefront, to: orders-api, type: calls }
+  - { from: orders-api, to: orders-db, type: reads_writes, critical: true }
+  - { from: storefront, to: collector, type: calls, critical: false }
+  - { from: orders-api, to: collector, type: calls, critical: false }
+  - { from: collector, to: orders-db, type: reads }
+  - { from: dashboards, to: collector, type: reads }
+`),
+          ),
+        },
+      ],
+      { workspace: 'acme', generatorVersion: 'test', now: new Date('2026-01-01') },
+    ).model,
+  );
+  const reached = (origin: string, direction: 'up' | 'down') =>
+    Object.fromEntries(
+      [...impact(orders, `orders/${origin}`, direction).distance]
+        .filter(([, hops]) => hops > 0)
+        .map(([key, hops]) => [key.replace('orders/', ''), hops]),
+    );
+
+  it('are not followed by the blast radius', () => {
+    expect(reached('collector', 'up')).toEqual({ dashboards: 1 });
+  });
+
+  it('are not followed by what a component depends on', () => {
+    expect(reached('storefront', 'down')).toEqual({ 'orders-api': 1, 'orders-db': 2 });
+    expect(reached('orders-api', 'down')).toEqual({ 'orders-db': 1 });
+  });
+
+  it('leave the critical relations around them as they were', () => {
+    expect(reached('orders-db', 'up')).toEqual({
+      'orders-api': 1,
+      collector: 1,
+      storefront: 2,
+      dashboards: 2,
+    });
+    expect(reached('dashboards', 'down')).toEqual({ collector: 1, 'orders-db': 2 });
+    for (const direction of ['up', 'down'] as const)
+      for (const key of orders.order)
+        for (const r of impact(orders, key, direction).relations)
+          expect(r.critical).toBeUndefined();
+  });
+
+  it('stay on the map and in the lists of their two ends', () => {
+    expect(orders.outgoing.get('orders/storefront')).toHaveLength(2);
+    expect(
+      orders.incoming.get('orders/collector')!.filter((r) => r.critical === false),
+    ).toHaveLength(2);
   });
 });
 

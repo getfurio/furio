@@ -264,6 +264,7 @@ function PinRow({
       <td>{direction === 'out' ? 'Out' : 'In'}</td>
       <td>
         <span className={`layer ${relation.type}`}>{relation.type.replace(/_/g, ' ')}</span>
+        {relation.critical === false && <span className="non-critical-tag">Non-critical</span>}
       </td>
       <td>
         <PeekLink className="mono" componentKey={other}>

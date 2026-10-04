@@ -383,6 +383,15 @@ function Legend() {
           {label}
         </span>
       ))}
+      <span
+        className="legend-row"
+        title="On the map, but Blast radius and Depends on do not follow it"
+      >
+        <svg width="22" height="6" aria-hidden>
+          <line x1="1" y1="3" x2="22" y2="3" className="trace is-non-critical" />
+        </svg>
+        non-critical, any colour
+      </span>
       <span className="legend-row">
         <svg width="22" height="12" aria-hidden>
           <rect

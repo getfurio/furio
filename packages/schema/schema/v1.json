@@ -168,6 +168,10 @@
           },
           "description": {
             "type": "string"
+          },
+          "critical": {
+            "description": "False when \"from\" keeps working if \"to\" goes down (telemetry, logs, audit, analytics): the map draws the relation, the impact analysis does not follow it. Defaults to true.",
+            "type": "boolean"
           }
         },
         "required": [
