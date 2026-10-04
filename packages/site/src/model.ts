@@ -228,7 +228,8 @@ export interface Impact {
  * a caller on what it calls, a consumer on its queue, a writer on its database.
  * - up: who is affected if this component goes down (its dependents, transitively);
  * - down: what this component needs to work (its dependencies, transitively).
- * depth 0 follows the graph to the end.
+ * depth 0 follows the graph to the end. A non-critical relation is never followed, in either
+ * direction: its `from` keeps working without its `to`.
  */
 export function impact(site: Site, origin: string, direction: ImpactDirection, depth = 0): Impact {
   const distance = new Map([[origin, 0]]);
@@ -239,6 +240,7 @@ export function impact(site: Site, origin: string, direction: ImpactDirection, d
     for (const key of frontier) {
       const edges = direction === 'up' ? site.incoming.get(key) : site.outgoing.get(key);
       for (const r of edges ?? []) {
+        if (r.critical === false) continue;
         const other = direction === 'up' ? r.from : r.to;
         relations.add(r);
         if (!distance.has(other)) {

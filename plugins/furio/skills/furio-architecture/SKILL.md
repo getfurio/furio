@@ -40,12 +40,20 @@ Pure refactors, tests, styling and internal code moves need no manifest change.
      `stripe`, `vps-1`)
    - optional: `tech` (the technology: `postgres`, `nginx`), `path` (the component's folder,
      `apps/server`), `status` (`deprecated` or `dev-only`)
+   - optional on a relation: `critical: false`, when the `from` component keeps doing its job if
+     `to` is down (see point 6)
 5. When a component gets a new folder, or moves, update its `path`. An outside service that calls
    this repo (a webhook, an OAuth callback) is modelled from the receiving side:
    `from: <receiver>`, `to: <service>`, `type: consumes`.
-6. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or
+6. Mark a relation `critical: false` only when the code shows that `from` works without `to`:
+   it exports telemetry, ships logs, writes an audit trail or reports to analytics, and a failure
+   there is swallowed or retried in the background. The relation stays on the map, but out of the
+   blast radius. Everything a request needs to succeed (a database, a queue, an API whose error
+   is returned to the caller) is critical: leave the field out. Never use it to make a blast
+   radius look smaller, and if you cannot tell, leave it out and ask the user.
+7. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or
    the id of a component in another repo is unknown, ask the user rather than guess.
-7. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.
+8. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.
 
 Example of a change that adds a consumer of an existing queue in another project:
 

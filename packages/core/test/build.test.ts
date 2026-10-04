@@ -185,4 +185,16 @@ describe('buildModel', () => {
     expect(model.components[1]).toMatchObject({ key: 'desk/sim', status: 'dev-only' });
     expect(model.relations[0]).toMatchObject({ type: 'spawns' });
   });
+
+  it('carries critical: false to the model, leaving out the default', () => {
+    const repo = makeRepo(
+      manifest(
+        'version: 1\nproject: shop\nowner: t\ncomponents:\n  - id: api\n    type: service\n  - id: db\n    type: database\n  - id: audit-log\n    type: storage\n  - id: collector\n    type: service\nrelations:\n  - from: api\n    to: audit-log\n    type: writes\n    critical: false\n  - from: api\n    to: db\n    type: reads_writes\n    critical: true\n  - from: collector\n    to: db\n    type: reads\n',
+      ),
+    );
+    const { model } = buildModel([{ id: 'acme/shop', dir: repo }], OPTIONS);
+    expect(model.relations[0]).toMatchObject({ to: 'shop/audit-log', critical: false });
+    expect(model.relations[1]).not.toHaveProperty('critical');
+    expect(model.relations[2]).not.toHaveProperty('critical');
+  });
 });
