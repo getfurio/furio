@@ -123,10 +123,16 @@ window.furioExtensions = {
   },
 
   // The Changes view: what changed over a period chosen among changeOptions. Marked cards get a
-  // New or Changed badge and the others are dimmed.
+  // New or Changed badge and the others are dimmed. `relations` is optional: how many were added,
+  // removed, or stayed and changed (became non-critical, or critical again).
   changeOptions: [{ value: '7', label: 'Last 7 days' }],
   async changes({ since, model }) {
-    return { label: 'Last 7 days', components: { 'shop/shop-api': 'changed' }, removed: [] };
+    return {
+      label: 'Last 7 days',
+      components: { 'shop/shop-api': 'changed' },
+      removed: [],
+      relations: { added: 1, removed: 0, changed: 1 },
+    };
   },
 
   // Links to the host's own pages, in the sidebar.
