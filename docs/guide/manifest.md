@@ -12,10 +12,11 @@ repo of the workspace into one map.
     refund-sequence.md
 ```
 
-Furio reads schema 1.1: every field below added since 1.0 (`tech`, `path`, `host`, `status`,
+Furio reads schema 1.2: every field below added since 1.0 (`tech`, `path`, `host`, `status`,
 `closed`, the `client`, `proxy` and `domain` types, the `reads_writes`, `serves` and `spawns`
-relations) is optional, and `version` stays `1`. Older manifests stay valid; older versions of
-Furio reject the new fields, so update the CLI and the Action (`@v0`) first.
+relations, and `critical` on a relation) is optional, and `version` stays `1`. Older manifests
+stay valid; older versions of Furio reject the new fields, so update the CLI and the Action
+(`@v0`) first.
 
 Add this first line to get autocompletion and inline errors in editors that use the YAML
 language server (for example VS Code with the Red Hat YAML extension):
@@ -65,6 +66,7 @@ relations:
     type: publishes # required, see the list below
     protocol: sqs
     description: One event per paid order
+    critical: true # true (default); false when "from" works without "to" (see below)
 
 diagrams:
   - file: diagrams/checkout-flow.mmd # required, relative to .architecture/
@@ -146,6 +148,32 @@ relations:
 
 The impact analysis then reads correctly: if Stripe goes down, the license server stops getting
 payment events.
+
+## Non-critical relations
+
+Some relations are real, but nothing breaks along them: a service that sends telemetry to a
+collector, ships its logs, writes an audit trail or reports to analytics keeps doing its job
+when the other end is down. Declared as plain relations they put the collector, and through it
+almost every component, in every blast radius, and the impact analysis stops telling you
+anything. Mark them `critical: false`:
+
+```yaml
+relations:
+  - from: shop-api
+    to: platform/telemetry-collector
+    type: calls
+    protocol: otlp
+    critical: false
+```
+
+The relation keeps its type and stays on the map, drawn dotted, and in the lists of both
+components. The blast radius and "Depends on" do not follow it, in either direction: if the
+collector goes down `shop-api` is not affected, and the collector is not among the things
+`shop-api` needs.
+
+A relation is critical unless it says otherwise, so leave the field out everywhere else. Use
+`critical: false` for what the component can lose and still do its job; not for a dependency
+that is rarely used, or that has a fallback nobody has tried.
 
 ## References
 

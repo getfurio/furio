@@ -13,6 +13,11 @@ map and its diagrams, in this browser. Each card's icon tile has the colour of i
 | serves                        | cyan         |
 | depends on · spawns           | grey, dashed |
 
+A dotted edge, in any of these colours, is a **non-critical** relation
+([`critical: false`](manifest.md#non-critical-relations)): the component at its start keeps
+working without the one at its end. The legend shows it, and the panel and the component page
+mark it.
+
 A dashed card marked **Not declared** is referenced by some repo but declared by none. A card
 drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Cards show the
 `tech` next to the type; a domain shows its name.
@@ -57,7 +62,9 @@ With a card selected, choose in the panel what to light:
   graph. Each lit card shows how many hops away it is.
 - **Depends on**: everything it needs to work.
 
-Set **Depth** to limit how far the blast radius and the dependencies go.
+Set **Depth** to limit how far the blast radius and the dependencies go. Neither follows a
+non-critical relation: telemetry, logs and audit trails stay on the map without putting every
+component in every blast radius.
 
 **Filter** (top left; on phones behind the Filter button): type a technology, a team, a host,
 a type, a provider or a status and pick from what the map contains, with how many parts have

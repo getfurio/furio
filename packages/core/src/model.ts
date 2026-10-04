@@ -77,6 +77,11 @@ export interface ModelRelation {
   type: RelationType;
   protocol?: string;
   description?: string;
+  /**
+   * Absent means critical. False: `from` keeps working without `to`; maps draw the relation but
+   * the impact analysis does not follow it.
+   */
+  critical?: false;
   repo: string;
 }
 

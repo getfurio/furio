@@ -187,6 +187,7 @@ function addManifest(
       type: r.type,
       ...(r.protocol ? { protocol: r.protocol } : {}),
       ...(r.description ? { description: r.description } : {}),
+      ...(r.critical === false ? { critical: false as const } : {}),
       repo: source.id,
     });
   }
