@@ -73,6 +73,10 @@ Every one of these states lives in the URL, so a view can be shared as a link, f
 #/p/shop?type=service,database&host=vps-1&only=1
 ```
 
+A link with `mode=impact` or `mode=depends` opens on its answer: the map frames every lit card,
+the selected one included, in the space the panel leaves free. It does the same when you change
+the mode or the depth in the panel.
+
 ## Keyboard
 
 | Key     | Action                                                                 |
