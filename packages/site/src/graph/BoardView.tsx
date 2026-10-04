@@ -128,9 +128,56 @@ function Canvas({
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
 
+  /**
+   * Blast radius and Depends on answer a question: fits every lit card, the selected one
+   * included, in the part of the canvas the overlays leave free (the filter bar, the buttons,
+   * the legend, and the panel: a column on the right, a sheet from the bottom on phones). False
+   * when there is nothing to frame: direct relations, or a selection that reaches nothing here.
+   */
+  const framed = useRef<string[]>([]);
+  const frame = (duration = 300): boolean => {
+    const canvas = host.current;
+    if (!canvas || framed.current.length < 2) return false;
+    const box = canvas.getBoundingClientRect();
+    const shown = (selector: string) => {
+      const rect = canvas.querySelector(selector)?.getBoundingClientRect();
+      return rect?.height ? rect : undefined;
+    };
+    const bar = shown('.filter-bar, .filter-toggle');
+    const buttons = shown('.react-flow__controls');
+    const legend = shown('.legend');
+    // By its offsets, not its rectangle: the panel is still sliding in when a link opens.
+    const panel = canvas.querySelector<HTMLElement>('.detail-panel');
+    const sheet = panel?.offsetLeft === 0;
+    const covered = {
+      top: bar ? bar.bottom - box.top : 0,
+      right: Math.max(
+        panel && !sheet ? box.width - panel.offsetLeft : 0,
+        buttons ? box.right - buttons.left : 0,
+      ),
+      bottom: Math.max(
+        panel && sheet ? box.height - panel.offsetTop : 0,
+        legend ? box.bottom - legend.top : 0,
+      ),
+    };
+    const gap = 16;
+    void flow.fitView({
+      nodes: framed.current.map((id) => ({ id })),
+      padding: {
+        top: `${Math.round(covered.top) + gap}px`,
+        right: `${Math.round(covered.right) + gap}px`,
+        bottom: `${Math.round(covered.bottom) + gap}px`,
+        left: `${gap}px`,
+      },
+      maxZoom: 1.2,
+      duration,
+    });
+    return true;
+  };
+
   // Fit the whole map, but never below a readable zoom: a large workspace starts at the top,
   // centred, and pans instead of shrinking every card to an unreadable size. A card selected in
-  // the URL is then brought into view.
+  // the URL is then brought into view, or everything it lights when the link asks a question.
   useEffect(() => {
     if (!layout) return;
     requestAnimationFrame(() => {
@@ -144,7 +191,7 @@ function Canvas({
           await flow.setViewport({ x, y: 120, zoom: MIN_READABLE_ZOOM });
         })
         .then(() => {
-          if (chrome && selectedRef.current) reveal(selectedRef.current, 0);
+          if (chrome && selectedRef.current && !frame(0)) reveal(selectedRef.current, 0);
         });
     });
   }, [layout, flow]);
@@ -213,6 +260,15 @@ function Canvas({
     }
     return { selected, nodes, edges, ...(reach ? { distance: reach.distance } : {}), ...marked };
   }, [selected, layout, reach, marks, matches]);
+  framed.current = chrome && reach ? [...lit.nodes] : [];
+
+  // A new question from the panel (the mode, the depth) moves the map to its answer. A new
+  // layout frames it after fitting.
+  useEffect(() => {
+    if (!layout) return;
+    const id = requestAnimationFrame(() => frame());
+    return () => cancelAnimationFrame(id);
+  }, [view.mode, view.depth]);
 
   // The sidebar search selects on this map when the card is on it (see selectOnMap).
   useEffect(() => {
