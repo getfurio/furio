@@ -16,7 +16,9 @@ who calls this service, who consumes this queue, what breaks if this database go
 ## Guides
 
 - [The manifest](docs/guide/manifest.md): every field, references, diagrams, what Furio checks.
-- [Set up Furio on GitHub](docs/guide/github-action.md): the check on pull requests and the catalog that publishes the map.
+- [Set up Furio](docs/guide/github-action.md): get started, the check on pull requests, a public
+  map on GitHub Pages or a private one on your own hosting (S3, SFTP), the Action and the CLI.
+- [Furio Cloud](docs/guide/cloud.md): a private map with nothing to run, and its history.
 - [Reading the map](docs/guide/map.md): views, blast radius, filters, shareable links, export.
 - [Coding agents](docs/guide/agents.md): keep the manifest updated with Claude Code, Codex and others.
 
@@ -74,19 +76,22 @@ A complete example with three repos and two projects lives in [`examples/demo`](
 
 ## The manifest
 
-| Field        | What it is                                                                                                                |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `version`    | Always `1` for now.                                                                                                       |
-| `project`    | The software this repo belongs to. Several repos can share a project.                                                     |
-| `owner`      | Default owning team for the components below.                                                                             |
-| `components` | What this repo owns: `id`, `type`, and optionally `name`, `description`, `owner`, `provider`, `runtime`, `tags`, `links`. |
-| `relations`  | `from` a local component, `to` a component of this project (`users-api`) or another one (`platform/users-api`).           |
-| `diagrams`   | Mermaid diagrams: `.mmd` files, or `.md` files with ` ```mermaid ` blocks.                                                |
+| Field        | What it is                                                                                                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `version`    | Always `1` for now.                                                                                                                                         |
+| `project`    | The software this repo belongs to. Several repos can share a project.                                                                                       |
+| `owner`      | Default owning team for the components below.                                                                                                               |
+| `components` | What this repo owns: `id`, `type`, and optionally `name`, `description`, `owner`, `provider`, `runtime`, `tech`, `path`, `host`, `status`, `tags`, `links`. |
+| `relations`  | `from` a local component, `to` a component of this project (`users-api`) or another one (`platform/users-api`).                                             |
+| `diagrams`   | Mermaid diagrams: `.mmd` files, or `.md` files with ` ```mermaid ` blocks.                                                                                  |
 
 - **Component types:** `service`, `function`, `job`, `frontend`, `queue`, `topic`, `database`,
-  `cache`, `storage`, `external`.
-- **Relation types:** `calls`, `publishes`, `consumes`, `reads`, `writes`, `depends_on`.
+  `cache`, `storage`, `external`, `client`, `proxy`, `domain`.
+- **Relation types:** `calls`, `publishes`, `consumes`, `reads`, `writes`, `reads_writes`,
+  `serves`, `spawns`, `depends_on`.
 - The manifest can also be named `furio.yaml`, but not both.
+
+[The manifest](docs/guide/manifest.md) explains every field.
 
 The JSON Schema for editor autocompletion is in
 [`packages/schema/schema/v1.json`](packages/schema/schema/v1.json).
@@ -112,9 +117,12 @@ claude plugin install furio@getfurio
 ## The map
 
 `furio build --site` writes the map next to `model.json`: a static site (no server) with a
-workspace view, a view per project, a page per component, search and the Mermaid diagrams. The
-catalog Action publishes it on GitHub Pages; see the live demo of the
-[`furio-demo`](https://furio-demo.github.io/catalog/) workspace.
+workspace view, a view per project, a page per component, a catalog, search and the Mermaid
+diagrams. Publish it on
+[GitHub Pages](docs/guide/github-action.md#3-a-public-map-on-github-pages) (see the live demo of
+the [`furio-demo`](https://furio-demo.github.io/catalog/) workspace), on
+[your own hosting](docs/guide/github-action.md#4-a-private-map-on-your-own-hosting), or let
+[Furio Cloud](docs/guide/cloud.md) host it.
 
 ## CLI
 
@@ -122,13 +130,15 @@ catalog Action publishes it on GitHub Pages; see the live demo of the
 furio init [path]          Start a manifest and teach coding agents to keep it updated
 furio validate [path...]   Check the .architecture/ manifest of one or more repos
 furio build [path...]      Merge many repos into model.json (--github <owner> to collect, --site for the map)
+furio upload [path]        Validate, then send the .architecture/ folder to Furio Cloud
 
 --format <pretty|json|github>  Output format (github is the default inside GitHub Actions)
 --plain                        No personality, no colors
 --strict                       Fail on warnings too
 ```
 
-Exit codes: `0` valid, `1` invalid, `2` usage error.
+Exit codes: `0` valid, `1` invalid, `2` usage or runtime error.
+[Set up Furio](docs/guide/github-action.md#5-the-action-and-the-cli) has every option.
 
 ## Development
 
