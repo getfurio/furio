@@ -20,8 +20,10 @@ When a paid subscription ends, the map is locked: nobody can see it and uploads 
 everything is kept. Choosing a plan again unlocks it. A paid workspace never goes back to Free,
 whose map is public.
 
-The [open source version](github-action.md) stays free for any repo, public or private: a catalog
-repo in your organization builds the map and you publish it where you choose.
+The open source version stays free for any repo, public or private: you build the map and
+publish it on [GitHub Pages](github-action.md#3-a-public-map-on-github-pages) or on
+[your own hosting](github-action.md#4-a-private-map-on-your-own-hosting).
+[Three places for the map](github-action.md#three-places-for-the-map) compares them.
 
 ## Set it up
 
@@ -114,6 +116,8 @@ The CLI (0.2.0 or later) does the same from any CI, with the token in `FURIO_UPL
 ```bash
 FURIO_UPLOAD_TOKEN=... npx @getfurio/cli@latest upload --repo <owner>/<repo>
 ```
+
+[The Action and the CLI](github-action.md#5-the-action-and-the-cli) lists the options of `upload`.
 
 ## What the hosted map adds
 
