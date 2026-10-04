@@ -5,6 +5,7 @@ import { codeUrl, facet, impact, indexModel, matchesFilter, revision, search } f
 import {
   changeMarks,
   changeOptions,
+  changeSummary,
   extensionCatalog,
   extensionNav,
   extensionHealth,
@@ -293,6 +294,34 @@ describe('extensions', () => {
     expect(serializeView({ mode: 'nets', depth: 0, filter: {}, since: 'last' })).toBe(
       '?since=last',
     );
+  });
+
+  it('says in the banner what changed, relations that changed included', () => {
+    expect(
+      changeSummary({
+        label: 'Last 7 days',
+        components: { 'shop/shop-api': 'added', 'shop/storefront': 'changed' },
+        removed: ['shop/legacy'],
+        relations: { added: 2, removed: 1, changed: 1 },
+      }),
+    ).toEqual([
+      '1 added',
+      '1 changed',
+      '1 removed',
+      '+2 relations',
+      '−1 relations',
+      '1 relation changed',
+    ]);
+    // A period in which relations only became non-critical (or critical again) is a change.
+    expect(
+      changeSummary({
+        label: 'Last change',
+        components: {},
+        relations: { added: 0, removed: 0, changed: 2 },
+      }),
+    ).toEqual(['2 relations changed']);
+    expect(changeSummary({ label: 'Last 7 days', components: {} })).toEqual([]);
+    expect(changeSummary(undefined)).toEqual([]);
   });
 
   it('ignores unsafe or failing extensions', async () => {

@@ -10,7 +10,7 @@ import {
 import '@xyflow/react/dist/base.css';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { changeMarks, type ChangeMarks } from '../extensions';
+import { changeMarks, changeSummary, type ChangeMarks } from '../extensions';
 import { impact, matchesFilter, revision, type Site } from '../model';
 import { go, hasFilter, href, replaceView, type ViewState } from '../router';
 import { FilterBox } from '../ui/FilterBox';
@@ -376,17 +376,8 @@ function Canvas({
 }
 
 function ChangesBanner({ marks, onClear }: { marks?: ChangeMarks; onClear: () => void }) {
-  const values = Object.values(marks?.components ?? {});
-  const added = values.filter((v) => v === 'added').length;
-  const changed = values.length - added;
   const removed = marks?.removed ?? [];
-  const parts = [
-    added && `${added} added`,
-    changed && `${changed} changed`,
-    removed.length && `${removed.length} removed`,
-    marks?.relations?.added && `+${marks.relations.added} relations`,
-    marks?.relations?.removed && `−${marks.relations.removed} relations`,
-  ].filter(Boolean);
+  const parts = changeSummary(marks);
   return (
     <div className="overlay changes-banner" role="status">
       <span className="changes-title">{marks?.label ?? 'Changes'}</span>

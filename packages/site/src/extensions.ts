@@ -63,7 +63,25 @@ export interface ChangeMarks {
   components: Record<string, 'added' | 'changed'>;
   /** Components that are gone: no card to mark, listed in the banner. */
   removed?: string[];
-  relations?: { added: number; removed: number };
+  /** `changed`: relations that stayed and changed, e.g. became non-critical. */
+  relations?: { added: number; removed: number; changed?: number };
+}
+
+/** What the banner of the Changes view says, one part per kind of change; empty when nothing. */
+export function changeSummary(marks: ChangeMarks | undefined): string[] {
+  const values = Object.values(marks?.components ?? {});
+  const added = values.filter((v) => v === 'added').length;
+  const changed = values.length - added;
+  const removed = marks?.removed?.length ?? 0;
+  const recast = marks?.relations?.changed ?? 0;
+  return [
+    added && `${added} added`,
+    changed && `${changed} changed`,
+    removed && `${removed} removed`,
+    marks?.relations?.added && `+${marks.relations.added} relations`,
+    marks?.relations?.removed && `−${marks.relations.removed} relations`,
+    recast && `${recast} ${recast === 1 ? 'relation' : 'relations'} changed`,
+  ].filter((part): part is string => Boolean(part));
 }
 
 export interface PanelSection {
