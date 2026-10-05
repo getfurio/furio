@@ -140,8 +140,35 @@ The map on Furio Cloud is the same as the open source one, plus what only a serv
   panel, on the health page and on the workspace page, and members get an email 30, 14, 7 and 1
   days before an expiry, or as soon as a certificate is not valid.
 
+## Members
+
+Members are the people who can sign in to a workspace. On Free they manage it (token, changes,
+settings) while the map stays public; on Individual and Business they are the only ones who see
+the map. Individual has one member, Business has no limit.
+
+Whoever creates the workspace is its owner. From the **Members** section of the workspace page,
+the owner:
+
+- adds a member by email. Furio sends them a link to sign in, and they get access as soon as
+  they sign in with that address: by email link, or with GitHub if it is their account's primary
+  email;
+- removes a member, who loses the map and the workspace at their next request.
+
+The other members can leave from the same section. Only the owner can delete the workspace, and
+the owner cannot leave it: when they delete their account, the member who has been there
+longest becomes the owner, and the account page says who before you confirm. A workspace never
+stays without members.
+
+So that Furio cannot be used to email strangers, a workspace can invite 10 people a day on Free
+and 50 on Business, and one person can send 50 invitations a day across their workspaces.
+Removing someone and adding them again counts twice.
+
+If a workspace moves to Individual, the owner keeps access; the other members stay listed,
+without access, until the owner removes them or the workspace goes back to Business.
+
 ## Leaving
 
-From the workspace page you can delete a workspace: its map, every repo's manifest, its tokens
-and its members go at once, for good. Cancel a running subscription first. From your account
-page you can delete your account.
+From the workspace page the owner can delete a workspace: its map, every repo's manifest, its
+tokens and its members go at once, for good. Cancel a running subscription first. From your
+account page you can delete your account: the workspaces you own pass to their next member, and
+a workspace where you are the only member has to be deleted first.
