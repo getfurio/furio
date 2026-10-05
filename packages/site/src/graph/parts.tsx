@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createContext, useContext, useMemo } from 'react';
-import { extensionIcon } from '../extensions';
+import { extensionIcon, type CardBadge } from '../extensions';
 import { useAppearance, type Palette, type Theme } from '../theme';
 import { STATUS_LABEL, TYPE_LABEL, type ModelComponent } from '../model';
 import { href } from '../router';
@@ -40,6 +40,8 @@ export interface Lit {
   distance?: Map<string, number>;
   /** The Changes view: what happened to each card over the period. */
   marks?: Record<string, 'added' | 'changed'>;
+  /** The host's badges, by component key: shown whatever is lit, never dimming the rest. */
+  badges?: Record<string, CardBadge>;
   /** The filter: the cards it matches (the rest are dimmed). */
   matches?: Set<string>;
 }
@@ -59,6 +61,7 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
   const lit = useContext(LitContext);
   const { component, inPads, outPads, padAt, padSide } = data;
   const mark = lit.marks?.[id];
+  const badge = lit.badges?.[id];
   const state =
     lit.selected === id
       ? 'is-selected'
@@ -92,6 +95,14 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
       {mark && (
         <span className={`change-mark ${mark}`} title={mark === 'added' ? 'Added' : 'Changed'}>
           {mark === 'added' ? 'New' : 'Changed'}
+        </span>
+      )}
+      {badge && (
+        <span
+          className={`card-badge ${badge.tone ? `tone-${badge.tone}` : ''}`}
+          title={badge.detail ?? badge.label}
+        >
+          {badge.label}
         </span>
       )}
       {lit.distance && lit.distance.get(id)! > 0 && (
