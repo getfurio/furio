@@ -53,7 +53,7 @@ export function App() {
         : route.name === 'health'
           ? 'Health'
           : route.name === 'diagrams'
-            ? 'Diagrams'
+            ? (site.model.diagrams.find((d) => d.key === route.diagram)?.title ?? 'Diagrams')
             : route.name === 'catalog'
               ? 'Catalog'
               : '';
@@ -128,11 +128,7 @@ function View({ site, route }: { site: Site; route: Route }) {
     case 'diagrams':
       return (
         <div className="page-scroll">
-          <DiagramsPage
-            site={site}
-            scope={scope}
-            {...(route.diagram ? { selected: route.diagram } : {})}
-          />
+          <DiagramsPage site={site} route={route} scope={scope} />
         </div>
       );
     default:
