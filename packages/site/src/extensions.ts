@@ -35,6 +35,11 @@ export interface FurioExtensions {
   health?(context: {
     model: Model;
   }): PanelSection[] | undefined | Promise<PanelSection[] | undefined>;
+  /**
+   * The host offers the other arrangements of the map (tiers, around a component, other groups
+   * and directions): the Arrange control appears, and links that carry an arrangement open on it.
+   */
+  arrange?: boolean;
 }
 
 export interface CatalogExtra {
@@ -109,6 +114,14 @@ declare global {
 
 export function extensions(): FurioExtensions {
   return (typeof window !== 'undefined' && window.furioExtensions) || {};
+}
+
+/**
+ * Whether the map can be arranged in other ways than its flow: when the host says so. The
+ * development server always can, to work on the arrangements without a host.
+ */
+export function extensionArrange(): boolean {
+  return extensions().arrange === true || import.meta.env.MODE === 'development';
 }
 
 /** An extension's icon, if its URL is safe to load (http(s), same-origin path or data image). */
