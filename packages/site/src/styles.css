@@ -1552,13 +1552,14 @@ a:hover {
   max-width: calc(100% - 96px);
 }
 
+/* In line with the buttons across the band: the same top and height. */
 .filter-toggle {
-  top: 12px;
+  top: 15px;
   left: 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
+  height: 32px;
   padding: 0 12px;
   font: inherit;
   font-size: 13px;
@@ -3340,6 +3341,67 @@ a:hover {
 @media (max-width: 860px) {
   .board-canvas.has-panel .arrange {
     right: 15px;
+  }
+}
+
+/* Phones (the narrow map): the zoom and export buttons are a row at the top, beside the filter, in
+   the band the map keeps clear. A column down the right would cover the cards. */
+@media (max-width: 760px) {
+  .board-canvas .react-flow__controls {
+    flex-direction: row;
+  }
+
+  .board-canvas.has-arrange .react-flow__controls {
+    margin-top: 15px;
+    margin-right: 55px;
+  }
+
+  .board-canvas .react-flow__controls-button {
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  .board-canvas .react-flow__controls-button:first-child {
+    border-radius: 7px 0 0 7px;
+  }
+
+  .board-canvas .react-flow__controls-button:last-child {
+    border-right: 0;
+    border-radius: 0 7px 7px 0;
+  }
+
+  /* Labels open below the row, along its right edge. */
+  .board-canvas .react-flow__controls-button:hover::after,
+  .board-canvas .react-flow__controls-button:focus-visible::after {
+    top: calc(100% + 8px);
+    right: 0;
+    transform: none;
+  }
+
+  /* Open, the filter takes the whole band, over the row and Arrange. */
+  .filter-bar {
+    right: 12px;
+    z-index: 8;
+  }
+
+  .changes-banner,
+  .board-canvas.has-panel .changes-banner {
+    right: 12px;
+  }
+}
+
+/* The smallest phones have no room for Arrange beside the row: it drops below the band. */
+@media (max-width: 359px) {
+  .board-canvas.has-arrange .react-flow__controls {
+    margin-right: 15px;
+  }
+
+  .arrange {
+    top: 55px;
+  }
+
+  .board-canvas.has-arrange .changes-banner {
+    right: 55px;
   }
 }
 
