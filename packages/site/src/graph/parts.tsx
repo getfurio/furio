@@ -55,8 +55,6 @@ type TraceEdge = Edge<TraceData, 'trace'>;
 
 export function Footprint({ id, data }: NodeProps<FootprintNode>) {
   const lit = useContext(LitContext);
-  // Circuit draws the cards as black chips whatever the theme.
-  const chip = useAppearance()[0].palette === 'circuit';
   const { component, inPads, outPads, padAt, direction } = data;
   const across = direction === 'RIGHT';
   const mark = lit.marks?.[id];
@@ -96,7 +94,7 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
         data-type={component.ghost ? undefined : component.type}
         aria-hidden
       >
-        <ComponentIcon component={component} {...(chip ? { surface: 'dark' as const } : {})} />
+        <ComponentIcon component={component} />
       </span>
       {mark && (
         <span className={`change-mark ${mark}`} title={mark === 'added' ? 'Added' : 'Changed'}>
@@ -208,25 +206,12 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
           {nonCritical ? ' · non-critical' : ''}
         </title>
       </path>
-      {palette === 'circuit' &&
-        points
-          .slice(1, -1)
-          .map((p, i) => (
-            <circle
-              key={i}
-              className={`via ${relation.type}`}
-              cx={p.x}
-              cy={p.y}
-              r={3.5}
-              fill={LAYER_COLOR[relation.type]}
-            />
-          ))}
       {palette === 'blueprint' && (
         <circle
           className={`trace-origin ${relation.type}`}
           cx={points[0]!.x}
           cy={points[0]!.y}
-          r={2.5}
+          r={2}
           fill={LAYER_COLOR[relation.type]}
         />
       )}
@@ -241,7 +226,8 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
         <polygon
           className={`trace-arrow ${relation.type}`}
           fill={LAYER_COLOR[relation.type]}
-          points={arrow(before, end)}
+          // A thicker trace, ending beside a pin of its own colour, needs a larger head.
+          points={arrow(before, end, palette === 'circuit' ? 10 : 7)}
         />
       )}
     </g>
@@ -353,18 +339,15 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 export function ComponentIcon({
   component,
   size = 16,
-  surface,
 }: {
   component: ModelComponent;
   size?: number;
-  /** What the icon sits on, when it is not the theme's own surface. */
-  surface?: Theme;
 }) {
   const theme = useAppearance()[0].theme;
   const icon = component.ghost ? undefined : extensionIcon(component);
   if (icon) {
     const mask = `url("${icon.src.replace(/"/g, '%22')}") center / contain no-repeat`;
-    const brand = icon.color && readable(icon.color, surface ?? theme) ? icon.color : undefined;
+    const brand = icon.color && readable(icon.color, theme) ? icon.color : undefined;
     return (
       <span
         className="ext-icon"
