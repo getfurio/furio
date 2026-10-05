@@ -161,11 +161,12 @@ and, on the paid plans, other ways to lay it out:
   `runtime`, for hosting platforms such as `vercel` or `cloudflare`) has a public status page that
   Furio reads, an incident the provider reports there shows on the map, as a badge on the cards of
   the components that use it, a section in their panel and an entry on the health page, and in the
-  workspace's **Incidents**. Furio reads each page every 5 minutes. Members get an email when an
-  incident starts, with a link to what depends on each component, and another when it closes; in the
-  workspace's **Settings** you choose which incidents (major and critical, the default; minor too;
-  or none). All of it is what the provider reports: status pages can be late or incomplete, and
-  Furio cannot confirm them;
+  workspace's **Incidents**. That page also lists the past incidents, the ones Furio saw closed,
+  as far back as the plan keeps the history. Furio reads each page every 5 minutes. Members get an
+  email when an incident starts, with a link to what depends on each component, and another when
+  it closes; in the workspace's **Settings** you choose which incidents (major and critical, the
+  default; minor too; or none). All of it is what the provider reports: status pages can be late
+  or incomplete, and Furio cannot confirm them;
 - on Individual and Business, **Arrange**: the map by tiers, around one component, or grouped by
   owner, host or type. [Arranging the map](#arranging-the-map) describes each.
 
