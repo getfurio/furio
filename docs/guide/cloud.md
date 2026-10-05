@@ -121,7 +121,8 @@ FURIO_UPLOAD_TOKEN=... npx @getfurio/cli@latest upload --repo <owner>/<repo>
 
 ## What the hosted map adds
 
-The map on Furio Cloud is the same as the open source one, plus what only a server can know:
+The map on Furio Cloud is the same as the open source one, plus what only a server can know
+and, on the paid plans, other ways to lay it out:
 
 - an icon on each card for its technology or provider (`tech: postgres`, `provider: stripe`),
   on every plan, Free included;
@@ -138,7 +139,37 @@ The map on Furio Cloud is the same as the open source one, plus what only a serv
   host name in `name` (`name: example.com`) is checked every day: when the registration expires
   (RDAP), the certificate served on port 443, and that DNS resolves. The results show in the
   panel, on the health page and on the workspace page, and members get an email 30, 14, 7 and 1
-  days before an expiry, or as soon as a certificate is not valid.
+  days before an expiry, or as soon as a certificate is not valid;
+- on Individual and Business, **Arrange**: the map by tiers, around one component, or grouped by
+  owner, host or type. [Arranging the map](#arranging-the-map) describes each.
+
+## Arranging the map
+
+On Individual and Business the map can be laid out in other ways than by what depends on what.
+**Arrange**, above the zoom buttons, offers:
+
+- **Flow** (the default): layers follow the relations, a part before what it uses. **Direction**
+  runs them left to right or top to bottom; Auto picks what fits the window. **Group by** changes
+  what the boards gather: projects, owners, hosts or types, to see who owns what and what runs
+  where.
+- **Tiers**: bands by kind, in the order of the classic picture: entry points (domains, proxies,
+  frontends, client apps), services (services, functions, jobs), messaging (queues, topics), data
+  (databases, caches, storage), then what is external.
+- **Around**: one component at the centre, what uses it on its left and what it uses on its
+  right, in rings by hops. Each ring says how many parts it holds, and each side how many in all,
+  so you know what a pan away still hides. Select a card to move the centre. Parts that neither
+  use it nor are used by it are left out. On a phone the same map is a stack to read down: what
+  uses the component above it, what it uses below, a level for each distance.
+
+The arrangement is part of the link, like the selection and the filter:
+
+```
+#/?arrange=tiers&dir=down
+#/?group=owner
+#/?arrange=around&around=platform/users-api
+```
+
+On the Free plan, and on a map you host yourself, such a link opens on the flow.
 
 ## Members
 
