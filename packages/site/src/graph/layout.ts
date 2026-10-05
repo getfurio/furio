@@ -3,6 +3,7 @@ import elkWorkerUrl from 'elkjs/lib/elk-worker.min.js?url';
 import type { Edge, Node } from '@xyflow/react';
 import {
   matchesFilter,
+  withNeighbours,
   type FacetKey,
   type ModelComponent,
   type ModelRelation,
@@ -127,18 +128,12 @@ export function scopeFor(
   const filter = view.filter ?? {};
   const all = site.model.components.filter((c) => matchesFilter(c, filter));
   if (view.focus) {
-    const keys = new Set([view.focus]);
-    for (const r of site.outgoing.get(view.focus) ?? []) keys.add(r.to);
-    for (const r of site.incoming.get(view.focus) ?? []) keys.add(r.from);
+    const keys = withNeighbours(site, [view.focus]);
     return { components: all.filter((c) => keys.has(c.key)) };
   }
   if (view.project) {
-    const own = new Set(all.filter((c) => c.project === view.project).map((c) => c.key));
-    const keys = new Set(own);
-    for (const key of own) {
-      for (const r of site.outgoing.get(key) ?? []) keys.add(r.to);
-      for (const r of site.incoming.get(key) ?? []) keys.add(r.from);
-    }
+    const own = all.filter((c) => c.project === view.project).map((c) => c.key);
+    const keys = withNeighbours(site, own);
     return { components: all.filter((c) => keys.has(c.key)) };
   }
   return { components: all };

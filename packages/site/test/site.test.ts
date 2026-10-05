@@ -27,7 +27,19 @@ import {
 } from '../src/graph/arrange';
 import { readable } from '../src/graph/parts';
 import { splitMarkdown } from '../src/markdown';
-import { flowOnly, href, parseHash, parseView, serializeView } from '../src/router';
+import {
+  currentScope,
+  flowOnly,
+  href,
+  inScope,
+  linksIn,
+  pageIn,
+  parseHash,
+  parseView,
+  routeScope,
+  serializeView,
+} from '../src/router';
+import { contents, mapWith, marksIn, projectScope } from '../src/scope';
 import { makeRepo, manifest } from '../../core/test/helpers';
 
 const EXAMPLES = join(import.meta.dirname, '../../../examples/demo');
@@ -228,6 +240,267 @@ describe('router', () => {
 
   it('ignores bad modes and depths', () => {
     expect(parseView('mode=nope&depth=-3&only=1')).toEqual({ mode: 'nets', depth: 0, filter: {} });
+  });
+});
+
+describe('project scope', () => {
+  // A made-up workspace: a shop that calls billing and a payments project nobody declares, a repo
+  // without a manifest and one whose manifest Furio cannot read.
+  const acme = indexModel(
+    buildModel(
+      [
+        {
+          id: 'acme/shop-api',
+          dir: makeRepo({
+            ...manifest(`version: 1
+project: shop
+owner: team-shop
+components:
+  - { id: api, type: service, tech: node }
+  - { id: db, type: database, tech: postgres }
+relations:
+  - { from: api, to: db, type: reads_writes }
+  - { from: api, to: billing/invoices, type: calls }
+  - { from: api, to: payments/gateway, type: calls }
+diagrams:
+  - { file: diagrams/checkout.mmd, title: Checkout, components: [api, billing/invoices] }
+`),
+            '.architecture/diagrams/checkout.mmd': 'flowchart LR\n  api --> invoices\n',
+          }),
+        },
+        {
+          id: 'acme/shop-web',
+          dir: makeRepo(
+            manifest(`version: 1
+project: shop
+components:
+  - { id: web, type: frontend, tech: reactt }
+relations:
+  - { from: web, to: api, type: calls }
+  - { from: web, to: search, type: calls }
+`),
+          ),
+        },
+        {
+          id: 'acme/billing',
+          dir: makeRepo({
+            ...manifest(`version: 1
+project: billing
+owner: team-billing
+components:
+  - { id: invoices, type: service, tech: go }
+  - { id: invoices-db, type: database, tech: postgrez }
+  - { id: reports, type: job, status: deprecated }
+relations:
+  - { from: invoices, to: invoices-db, type: writes }
+  - { from: reports, to: invoices-db, type: reads }
+  - { from: invoices, to: tax, type: calls }
+diagrams:
+  - { file: diagrams/run.mmd, title: Billing run, components: [invoices] }
+`),
+            '.architecture/diagrams/run.mmd': 'flowchart LR\n  invoices --> db\n',
+          }),
+        },
+        { id: 'acme/wiki', dir: makeRepo({ 'README.md': '# Wiki\n' }) },
+        { id: 'acme/broken', dir: makeRepo(manifest('version: 1\nproject: [shop]\n')) },
+      ],
+      { workspace: 'acme', generatorVersion: 'test', now: new Date('2026-01-01') },
+    ).model,
+  );
+  const shop = projectScope(acme, 'shop');
+  const billing = projectScope(acme, 'billing');
+  const keys = (list: { key: string }[]) => list.map((c) => c.key).sort();
+  const withHash = (hash: string, fn: () => void) => {
+    (globalThis as { window?: unknown }).window = { location: { hash } };
+    try {
+      fn();
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+  };
+
+  it('puts on the map the project and the parts of other projects it touches, nothing more', () => {
+    expect([...shop.own].sort()).toEqual(['shop/api', 'shop/db', 'shop/search', 'shop/web']);
+    expect([...shop.map].sort()).toEqual([
+      'billing/invoices',
+      'payments/gateway',
+      'shop/api',
+      'shop/db',
+      'shop/search',
+      'shop/web',
+    ]);
+    // What billing does behind the part the shop calls stays out.
+    for (const key of ['billing/invoices-db', 'billing/reports', 'billing/tax'])
+      expect(shop.map.has(key)).toBe(false);
+  });
+
+  it('lists in the catalog the components of the project only', () => {
+    expect(keys(contents(acme, shop).components)).toEqual(['shop/api', 'shop/db', 'shop/web']);
+    expect(keys(contents(acme, billing).components)).toEqual([
+      'billing/invoices',
+      'billing/invoices-db',
+      'billing/reports',
+    ]);
+    expect(contents(acme).components).toHaveLength(6);
+  });
+
+  it('keeps on the health page the repos, issues and ghosts of the project', () => {
+    const page = contents(acme, shop);
+    expect(page.repos.map((r) => r.id).sort()).toEqual(['acme/shop-api', 'acme/shop-web']);
+    expect(page.issues.length).toBeGreaterThan(0);
+    expect(new Set(page.issues.map((i) => i.repo))).toEqual(
+      new Set(['acme/shop-api', 'acme/shop-web']),
+    );
+    // The ghosts on its map: its own, and the undeclared parts it calls; not billing's.
+    expect(keys(page.ghosts)).toEqual(['payments/gateway', 'shop/search']);
+    expect(keys(contents(acme, billing).ghosts)).toEqual(['billing/tax']);
+    // The repos in no project are the workspace's: counted, never listed in a scope.
+    expect(page.unassigned).toBe(2);
+    expect(page.repos.some((r) => !r.project)).toBe(false);
+    const all = contents(acme);
+    expect(all.repos).toHaveLength(5);
+    expect(all.issues.some((i) => i.repo === 'acme/billing')).toBe(true);
+    expect(keys(all.ghosts)).toEqual(['billing/tax', 'payments/gateway', 'shop/search']);
+  });
+
+  it('shows on the diagrams page the diagrams of the project only', () => {
+    expect(contents(acme, shop).diagrams.map((d) => d.title)).toEqual(['Checkout']);
+    expect(contents(acme, billing).diagrams.map((d) => d.title)).toEqual(['Billing run']);
+    expect(contents(acme).diagrams).toHaveLength(2);
+  });
+
+  it('searches and offers filter values among the parts on its map', () => {
+    const found = (query: string) => search(acme, query, 12, shop.map).map((h) => h.component.key);
+    expect(found('invoices')).toEqual(['billing/invoices']);
+    expect(found('db')).toEqual(['shop/db']);
+    expect(facet(acme, 'tech', shop.map).map((f) => f.value)).toEqual([
+      'go',
+      'node',
+      'postgres',
+      'reactt',
+    ]);
+    expect(facet(acme, 'tech').map((f) => f.value)).toContain('postgrez');
+  });
+
+  it('counts in the Changes banner only what is on its map', () => {
+    const marks = {
+      label: 'Last 7 days',
+      components: { 'shop/api': 'changed', 'billing/reports': 'added' } as const,
+      removed: ['shop/cart', 'billing/old'],
+      relations: { added: 2, removed: 0 },
+    };
+    expect(marksIn(marks, shop)).toEqual({
+      label: 'Last 7 days',
+      components: { 'shop/api': 'changed' },
+      removed: ['shop/cart'],
+      relations: { added: 2, removed: 0 },
+    });
+  });
+
+  it('keeps the scope in the URL of every page', () => {
+    expect(parseHash('#/p/shop')).toMatchObject({ name: 'project', project: 'shop' });
+    expect(parseHash('#/p/shop/catalog?type=database&q=pg')).toEqual({
+      name: 'catalog',
+      type: 'database',
+      q: 'pg',
+      scope: 'shop',
+    });
+    expect(parseHash('#/p/shop/health')).toEqual({ name: 'health', scope: 'shop' });
+    expect(parseHash('#/p/shop/diagrams?d=acme/shop-api:diagrams/checkout.mmd')).toEqual({
+      name: 'diagrams',
+      diagram: 'acme/shop-api:diagrams/checkout.mmd',
+      scope: 'shop',
+    });
+    expect(parseHash('#/p/shop/c/billing/invoices')).toEqual({
+      name: 'component',
+      key: 'billing/invoices',
+      scope: 'shop',
+    });
+    const to = linksIn('shop');
+    for (const link of [
+      to.map(),
+      to.map({ sel: 'shop/api', mode: 'impact' }),
+      to.catalog('service', 'node'),
+      to.health(),
+      to.diagrams('acme/shop-api:diagrams/checkout.mmd'),
+      to.component('billing/invoices'),
+    ])
+      expect(routeScope(parseHash(link))).toBe('shop');
+    expect(to.map({ sel: 'shop/api', mode: 'impact' })).toBe('#/p/shop?sel=shop/api&mode=impact');
+    expect(to.catalog('service')).toBe('#/p/shop/catalog?type=service');
+  });
+
+  it('opens the links made before it as they were, without a scope', () => {
+    expect(parseHash('#/?sel=shop/api&mode=impact')).toEqual({
+      name: 'workspace',
+      view: { sel: 'shop/api', mode: 'impact', depth: 0, filter: {} },
+    });
+    expect(parseHash('#/p/shop?type=service&only=1')).toEqual({
+      name: 'project',
+      project: 'shop',
+      view: { mode: 'nets', depth: 0, filter: { type: ['service'] }, only: true },
+    });
+    for (const hash of ['#/', '#/catalog?type=service', '#/health', '#/diagrams', '#/c/shop/api'])
+      expect(routeScope(parseHash(hash))).toBeUndefined();
+    expect(href.catalog('service')).toBe('#/catalog?type=service');
+    expect(currentScope()).toBeUndefined();
+  });
+
+  it('carries the scope from page to page, and leaves it with what the page shows', () => {
+    withHash('#/p/shop/catalog?type=database', () => {
+      expect(currentScope()).toBe('shop');
+      expect(href.health()).toBe('#/p/shop/health');
+      expect(href.component('billing/invoices')).toBe('#/p/shop/c/billing/invoices');
+      expect(href.map()).toBe('#/p/shop');
+      // A map link from an extension stays in the scope; other links are left alone.
+      expect(inScope('#/c/shop/api')).toBe('#/p/shop/c/shop/api');
+      expect(inScope('#/?sel=shop/api')).toBe('#/p/shop?sel=shop/api');
+      expect(inScope('#/')).toBe('#/p/shop');
+      expect(inScope('#/p/billing')).toBe('#/p/billing');
+      expect(inScope('https://example.com/#/c/x')).toBe('https://example.com/#/c/x');
+      // Show on the map: the scope's map when the part is on it, the workspace's otherwise.
+      expect(mapWith(acme, 'billing/invoices')).toBe('#/p/shop?sel=billing/invoices');
+      expect(mapWith(acme, 'billing/invoices-db', { mode: 'impact' })).toBe(
+        '#/?sel=billing/invoices-db&mode=impact',
+      );
+    });
+    // Leaving keeps what the page shows; another project keeps the page.
+    const catalog = parseHash('#/p/shop/catalog?type=database&q=pg');
+    expect(pageIn(catalog)).toBe('#/catalog?type=database&q=pg');
+    expect(pageIn(catalog, 'billing')).toBe('#/p/billing/catalog?type=database&q=pg');
+    const map = parseHash('#/p/shop?sel=shop/api&mode=impact');
+    expect(pageIn(map)).toBe('#/?sel=shop/api&mode=impact');
+    expect(pageIn(map, 'billing')).toBe('#/p/billing');
+    expect(pageIn(parseHash('#/p/shop/c/shop/api'))).toBe('#/c/shop/api');
+    expect(pageIn(parseHash('#/p/shop/c/shop/api'), 'billing')).toBe('#/p/billing');
+    expect(pageIn(parseHash('#/p/shop/diagrams?d=x'))).toBe('#/diagrams?d=x');
+    expect(pageIn(parseHash('#/health'), 'shop')).toBe('#/p/shop/health');
+  });
+
+  it('tells the extensions which project the page is scoped to', async () => {
+    const seen: unknown[] = [];
+    (globalThis as { window?: unknown }).window = {
+      furioExtensions: {
+        health: (context: { project?: string }) => (seen.push(context.project), []),
+        catalog: (context: { project?: string }) => (
+          seen.push(context.project),
+          { columns: [], cells: {} }
+        ),
+        changes: (context: { project?: string }) => (
+          seen.push(context.project),
+          { label: 'x', components: {} }
+        ),
+      },
+    };
+    try {
+      await extensionHealth(acme.model, 'shop');
+      await extensionCatalog(acme.model, 'shop');
+      await changeMarks('7', acme.model, 'shop');
+      await extensionHealth(acme.model);
+      expect(seen).toEqual(['shop', 'shop', 'shop', undefined]);
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
   });
 });
 
