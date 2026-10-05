@@ -33,12 +33,15 @@ interface Option {
  */
 export function FilterBox({
   site,
+  within,
   view,
   matches,
   onChange,
   collapsible,
 }: {
   site: Site;
+  /** The parts the map shows, in a project's scope: the values offered are theirs. */
+  within?: ReadonlySet<string>;
   view: ViewState;
   /** How many declared components match the filter. */
   matches: number;
@@ -55,11 +58,11 @@ export function FilterBox({
   const periods = useMemo(() => changeOptions(), []);
   const facets = useMemo(
     () =>
-      FILTERS.map((key) => ({ key, values: facet(site, key) })).filter(
+      FILTERS.map((key) => ({ key, values: facet(site, key, within) })).filter(
         // A facet with a single value filters nothing.
         (f) => f.values.length > 1,
       ),
-    [site],
+    [site, within],
   );
   const filter = view.filter;
   const chips = FILTERS.flatMap((key) => (filter[key] ?? []).map((value) => ({ key, value })));

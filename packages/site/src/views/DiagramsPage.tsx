@@ -1,15 +1,27 @@
 import { ArrowRight, Workflow } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import type { Site } from '../model';
+import { contents, type Scope } from '../scope';
 import { href } from '../router';
 import { Diagram } from '../ui/Diagram';
 import { PeekLink } from '../ui/Peek';
 
 export const DIAGRAMS_GUIDE = 'https://getfurio.com/docs/manifest#diagrams';
 
-/** Every diagram of the workspace, by project, each linked to the components it describes. */
-export function DiagramsPage({ site, selected }: { site: Site; selected?: string }) {
-  const { diagrams } = site.model;
+/**
+ * Every diagram of the workspace, by project, each linked to the components it describes; in a
+ * project's scope, the project's diagrams only.
+ */
+export function DiagramsPage({
+  site,
+  scope,
+  selected,
+}: {
+  site: Site;
+  scope?: Scope | undefined;
+  selected?: string;
+}) {
+  const { diagrams } = useMemo(() => contents(site, scope), [site, scope]);
   const byProject = useMemo(() => {
     const groups = new Map<string, typeof diagrams>();
     for (const d of [...diagrams].sort((a, b) => a.title.localeCompare(b.title)))
@@ -37,8 +49,19 @@ export function DiagramsPage({ site, selected }: { site: Site; selected?: string
         <h1 style={{ fontFamily: 'var(--sans)' }}>Diagrams</h1>
         <span className="tb-sub">
           {diagrams.length === 0 ? (
+            scope ? (
+              <>
+                No diagrams in <strong>{scope.project}</strong> yet.
+              </>
+            ) : (
+              <>
+                No diagrams on the <strong>{site.model.workspace.id}</strong> map yet.
+              </>
+            )
+          ) : scope ? (
             <>
-              No diagrams on the <strong>{site.model.workspace.id}</strong> map yet.
+              {diagrams.length} {diagrams.length === 1 ? 'diagram' : 'diagrams'} in{' '}
+              <strong>{scope.project}</strong>: the flows a graph cannot show.
             </>
           ) : (
             <>

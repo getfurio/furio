@@ -11,7 +11,8 @@ import {
   type ModelComponent,
   type Site,
 } from '../model';
-import { href, type Route } from '../router';
+import { href, inScope, replaceHash, type Route } from '../router';
+import { contents, type Scope } from '../scope';
 import { PeekLink } from '../ui/Peek';
 
 interface Column {
@@ -36,14 +37,17 @@ export function csvCell(value: string): string {
 
 /**
  * Every declared component in a table: a tab per type the workspace has, a search over every
- * field, sortable columns, and the columns a host adds (e.g. domain expiries on Furio Cloud).
+ * field, sortable columns, and the columns a host adds (e.g. domain expiries on Furio Cloud). In a
+ * project's scope, the project's components only.
  */
 export function CatalogPage({
   site,
   route,
+  scope,
 }: {
   site: Site;
   route: Extract<Route, { name: 'catalog' }>;
+  scope?: Scope | undefined;
 }) {
   const [query, setQuery] = useState(route.q ?? '');
   const [sort, setSort] = useState<{ id: string; desc: boolean }>({ id: 'name', desc: false });
@@ -52,19 +56,18 @@ export function CatalogPage({
 
   useEffect(() => {
     let live = true;
-    void extensionCatalog(site.model).then((e) => live && setExtra(e));
+    void extensionCatalog(site.model, scope?.project).then((e) => live && setExtra(e));
     return () => {
       live = false;
     };
-  }, [site]);
+  }, [site, scope]);
 
   // The query lives in the URL, so a filtered table can be shared.
   useEffect(() => {
-    const next = href.catalog(type, query.trim() || undefined);
-    if (next !== window.location.hash) history.replaceState(null, '', next);
+    replaceHash(href.catalog(type, query.trim() || undefined));
   }, [type, query]);
 
-  const declared = useMemo(() => site.model.components.filter((c) => !c.ghost), [site]);
+  const declared = useMemo(() => contents(site, scope).components, [site, scope]);
   const tabs = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of declared) counts.set(c.type ?? '', (counts.get(c.type ?? '') ?? 0) + 1);
@@ -143,7 +146,8 @@ export function CatalogPage({
         cell: (c) => {
           const x = cell(c);
           if (!x) return null;
-          const link = safeHref(x.href);
+          const safe = safeHref(x.href);
+          const link = safe && inScope(safe);
           const text = <span className={x.tone ? `tone-${x.tone}` : ''}>{x.value}</span>;
           return link ? (
             <a
@@ -207,7 +211,7 @@ export function CatalogPage({
     const url = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `furio-${site.model.workspace.id}-${type ?? 'all'}.csv`;
+    a.download = `furio-${[site.model.workspace.id, scope?.project, type ?? 'all'].filter(Boolean).join('-')}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -220,8 +224,18 @@ export function CatalogPage({
           <Download size={14} aria-hidden /> CSV
         </button>
         <span className="tb-sub">
-          {declared.length} components in {site.model.projects.filter((p) => !p.ghost).length}{' '}
-          projects. Click a name for a quick look.
+          {scope ? (
+            <>
+              {declared.length} {declared.length === 1 ? 'component' : 'components'} in{' '}
+              <strong>{scope.project}</strong>.
+            </>
+          ) : (
+            <>
+              {declared.length} components in {site.model.projects.filter((p) => !p.ghost).length}{' '}
+              projects.
+            </>
+          )}{' '}
+          Click a name for a quick look.
         </span>
       </header>
 
