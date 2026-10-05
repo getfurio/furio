@@ -3010,12 +3010,26 @@ a:hover {
   }
 
   .nav a {
+    flex: none;
     height: 30px;
     padding: 0 8px;
   }
 
-  .nav:first-of-type {
-    margin-left: auto;
+  /* Inset: the rows that scroll sideways would clip a ring drawn outside the link. */
+  .nav a:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* The sections take a row of their own under the workspace, without their icons: with them the
+     four are wider than a phone. Long counts scroll the row sideways, never the page. */
+  .sections {
+    flex: 1 0 100%;
+    order: 1;
+    overflow-x: auto;
+  }
+
+  .sections svg {
+    display: none;
   }
 
   .nav-section,
@@ -3024,7 +3038,7 @@ a:hover {
   }
 
   .sidebar-foot {
-    margin: 0;
+    margin: 0 0 0 auto;
     padding: 0;
   }
 
@@ -3032,10 +3046,6 @@ a:hover {
     flex: 1 0 100%;
     order: 10;
     overflow-x: auto;
-  }
-
-  .projects a {
-    flex: none;
   }
 
   .title-block,
