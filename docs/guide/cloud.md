@@ -13,8 +13,8 @@ reads your code. Furio never reads the repos; it only receives what the Action s
 | Business   | 49 € a month or 490 € a year per workspace, VAT excl. | Public and private, unlimited  | Private: unlimited members     |
 
 Free is for open source: Furio checks that every repo that uploads is public. A paid plan makes
-the map private and accepts private repos. Paid plans start with a 7-day free trial; payments,
-VAT and receipts go through Stripe.
+the map private and accepts private repos. A workspace's first paid plan starts with a 7-day free
+trial, once per workspace; payments, VAT and receipts go through Stripe.
 
 When a paid subscription ends, the map is locked: nobody can see it and uploads are refused, but
 everything is kept. Choosing a plan again unlocks it. A paid workspace never goes back to Free,
