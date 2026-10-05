@@ -4,14 +4,25 @@ import { BoardView } from '../graph/BoardView';
 import { ComponentIcon } from '../graph/parts';
 import { codeUrl, impact, STATUS_LABEL, TYPE_LABEL, type ModelRelation, type Site } from '../model';
 import { backTarget, go, href } from '../router';
+import { mapWith, type Scope } from '../scope';
 import { PeekLink } from '../ui/Peek';
 import { Diagram } from '../ui/Diagram';
 
-export function ComponentPage({ site, componentKey }: { site: Site; componentKey: string }) {
+/** One component; in a project's scope, j and k move among the parts its map shows. */
+export function ComponentPage({
+  site,
+  componentKey,
+  scope,
+}: {
+  site: Site;
+  componentKey: string;
+  scope?: Scope | undefined;
+}) {
   const component = site.byKey.get(componentKey);
-  const index = site.order.indexOf(componentKey);
-  const prev = index > 0 ? site.order[index - 1] : undefined;
-  const next = index >= 0 && index < site.order.length - 1 ? site.order[index + 1] : undefined;
+  const order = scope ? site.order.filter((key) => scope.map.has(key)) : site.order;
+  const index = order.indexOf(componentKey);
+  const prev = index > 0 ? order[index - 1] : undefined;
+  const next = index >= 0 && index < order.length - 1 ? order[index + 1] : undefined;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -33,7 +44,7 @@ export function ComponentPage({ site, componentKey }: { site: Site; componentKey
       <div className="sheet">
         <div className="empty-state">
           No component <span className="mono">{componentKey}</span> on this map.{' '}
-          <a href={href.workspace()}>Back to the workspace</a>
+          <a href={href.map()}>Back to the map</a>
         </div>
       </div>
     );
@@ -331,7 +342,7 @@ function ImpactSection({ site, componentKey }: { site: Site; componentKey: strin
                 })}
               </tbody>
             </table>
-            <a className="button quiet map-link" href={href.workspace({ sel: componentKey, mode })}>
+            <a className="button quiet map-link" href={mapWith(site, componentKey, { mode })}>
               Show on the map <ArrowRight size={13} aria-hidden />
             </a>
           </>
