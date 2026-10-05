@@ -182,7 +182,7 @@ function Sidebar({ site, route }: { site: Site; route: Route }) {
         />
       )}
       <Search site={site} {...(scope ? { within: scope.map } : {})} />
-      <nav className="nav" aria-label="Sections">
+      <nav className="nav sections" aria-label="Sections">
         <a
           href={to.map()}
           aria-current={route.name === 'workspace' || route.name === 'project' ? 'page' : undefined}
