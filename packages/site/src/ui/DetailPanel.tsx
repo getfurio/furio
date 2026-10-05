@@ -11,7 +11,8 @@ import {
   type ModelRelation,
   type Site,
 } from '../model';
-import { href, type ViewState } from '../router';
+import { href, inScope, type ViewState } from '../router';
+import { mapWith } from '../scope';
 
 const DEPTHS = [1, 2, 3, 0];
 
@@ -88,7 +89,7 @@ export function DetailPanel({
             Open page <ArrowRight size={14} aria-hidden />
           </a>
           {!view && (
-            <a className="button quiet" href={href.workspace({ sel: component.key })}>
+            <a className="button quiet" href={mapWith(site, component.key)}>
               <MapIcon size={14} aria-hidden /> Show on the map
             </a>
           )}
@@ -326,7 +327,8 @@ export function ExtensionSection({ section }: { section: PanelSection }) {
       {section.items && section.items.length > 0 && (
         <dl className="dp-facts">
           {section.items.map((item, i) => {
-            const link = safeHref(item.href);
+            const safe = safeHref(item.href);
+            const link = safe && inScope(safe);
             const external = link?.startsWith('http');
             return (
               <div key={`${item.label}-${i}`} className={item.tone ? `tone-${item.tone}` : ''}>

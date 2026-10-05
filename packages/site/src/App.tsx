@@ -9,13 +9,24 @@ import {
   Sun,
   Table2,
   Workflow,
+  X,
 } from 'lucide-react';
 import { extensionNav, type NavLink } from './extensions';
 import { PALETTE_LABEL, PALETTES, useAppearance } from './theme';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BoardView } from './graph/BoardView';
 import { indexModel, loadModel, revision, type Site } from './model';
-import { href, serializeView, useRoute, type Route } from './router';
+import {
+  href,
+  linksIn,
+  pageIn,
+  routeScope,
+  serializeView,
+  useHere,
+  useRoute,
+  type Route,
+} from './router';
+import { contents, projectScope, type Scope } from './scope';
 import { PeekProvider } from './ui/Peek';
 import { Search } from './ui/Search';
 import { CatalogPage } from './views/CatalogPage';
@@ -36,19 +47,18 @@ export function App() {
 
   useEffect(() => {
     if (!site) return;
-    const where =
+    const page =
       route.name === 'component'
         ? route.key
-        : route.name === 'project'
-          ? route.project
-          : route.name === 'health'
-            ? 'Health'
-            : route.name === 'diagrams'
-              ? 'Diagrams'
-              : route.name === 'catalog'
-                ? 'Catalog'
-                : '';
-    document.title = `${where ? `${where} · ` : ''}${site.model.workspace.id} · Furio map`;
+        : route.name === 'health'
+          ? 'Health'
+          : route.name === 'diagrams'
+            ? 'Diagrams'
+            : route.name === 'catalog'
+              ? 'Catalog'
+              : '';
+    const where = [page, routeScope(route), site.model.workspace.id].filter(Boolean);
+    document.title = `${where.join(' · ')} · Furio map`;
   }, [site, route]);
 
   if (error) {
@@ -85,6 +95,8 @@ export function App() {
 }
 
 function View({ site, route }: { site: Site; route: Route }) {
+  const project = routeScope(route);
+  const scope = project ? projectScope(site, project) : undefined;
   switch (route.name) {
     case 'project':
       return (
@@ -98,25 +110,29 @@ function View({ site, route }: { site: Site; route: Route }) {
     case 'component':
       return (
         <div className="page-scroll">
-          <ComponentPage site={site} componentKey={route.key} />
+          <ComponentPage site={site} componentKey={route.key} scope={scope} />
         </div>
       );
     case 'health':
       return (
         <div className="page-scroll">
-          <HealthPage site={site} />
+          <HealthPage site={site} scope={scope} />
         </div>
       );
     case 'catalog':
       return (
         <div className="page-scroll">
-          <CatalogPage site={site} route={route} />
+          <CatalogPage site={site} route={route} scope={scope} />
         </div>
       );
     case 'diagrams':
       return (
         <div className="page-scroll">
-          <DiagramsPage site={site} {...(route.diagram ? { selected: route.diagram } : {})} />
+          <DiagramsPage
+            site={site}
+            scope={scope}
+            {...(route.diagram ? { selected: route.diagram } : {})}
+          />
         </div>
       );
     default:
@@ -126,21 +142,25 @@ function View({ site, route }: { site: Site; route: Route }) {
   }
 }
 
-/** Linear-style sidebar: workspace, search, sections, projects. */
+/**
+ * Linear-style sidebar: workspace, the project the pages are scoped to, search, sections,
+ * projects. In a scope the sections link inside it and count what it shows.
+ */
 function Sidebar({ site, route }: { site: Site; route: Route }) {
+  const project = routeScope(route);
+  const scope = useMemo(() => (project ? projectScope(site, project) : undefined), [site, project]);
+  const shown = useMemo(() => contents(site, scope), [site, scope]);
   const counts = useMemo(() => {
     const out = new Map<string, number>();
     for (const c of site.model.components)
       if (!c.ghost) out.set(c.project, (out.get(c.project) ?? 0) + 1);
     return out;
   }, [site]);
-  const current =
-    route.name === 'project'
-      ? route.project
-      : route.name === 'component'
-        ? route.key.split('/')[0]
-        : undefined;
-  const issues = site.model.issues.length + site.model.components.filter((c) => c.ghost).length;
+  const current = project ?? (route.name === 'component' ? route.key.split('/')[0] : undefined);
+  const issues = shown.issues.length + shown.ghosts.length;
+  const to = linksIn(project);
+  // The way out and the other projects take the page as it is now: a search, a selection.
+  const here = useHere();
 
   return (
     <aside className="sidebar">
@@ -153,28 +173,37 @@ function Sidebar({ site, route }: { site: Site; route: Route }) {
           </span>
         </span>
       </a>
-      <Search site={site} />
+      {scope && (
+        <ScopePlate
+          site={site}
+          scope={scope}
+          parts={shown.components.length}
+          leave={pageIn(here)}
+        />
+      )}
+      <Search site={site} {...(scope ? { within: scope.map } : {})} />
       <nav className="nav" aria-label="Sections">
-        <a href={href.workspace()} aria-current={route.name === 'workspace' ? 'page' : undefined}>
+        <a
+          href={to.map()}
+          aria-current={route.name === 'workspace' || route.name === 'project' ? 'page' : undefined}
+        >
           <MapIcon size={16} strokeWidth={1.75} aria-hidden />
           Map
         </a>
-        <a href={href.health()} aria-current={route.name === 'health' ? 'page' : undefined}>
+        <a href={to.health()} aria-current={route.name === 'health' ? 'page' : undefined}>
           <Activity size={16} strokeWidth={1.75} aria-hidden />
           Health
           {issues > 0 && <span className="nav-count">{issues}</span>}
         </a>
-        <a href={href.catalog()} aria-current={route.name === 'catalog' ? 'page' : undefined}>
+        <a href={to.catalog()} aria-current={route.name === 'catalog' ? 'page' : undefined}>
           <Table2 size={16} strokeWidth={1.75} aria-hidden />
           Catalog
-          <span className="nav-count">{site.model.components.filter((c) => !c.ghost).length}</span>
+          <span className="nav-count">{shown.components.length}</span>
         </a>
-        <a href={href.diagrams()} aria-current={route.name === 'diagrams' ? 'page' : undefined}>
+        <a href={to.diagrams()} aria-current={route.name === 'diagrams' ? 'page' : undefined}>
           <Workflow size={16} strokeWidth={1.75} aria-hidden />
           Diagrams
-          {site.model.diagrams.length > 0 && (
-            <span className="nav-count">{site.model.diagrams.length}</span>
-          )}
+          {shown.diagrams.length > 0 && <span className="nav-count">{shown.diagrams.length}</span>}
         </a>
       </nav>
       <HostNav site={site} />
@@ -185,7 +214,7 @@ function Sidebar({ site, route }: { site: Site; route: Route }) {
           return (
             <a
               key={p.id}
-              href={href.project(p.id)}
+              href={pageIn(here, p.id)}
               aria-current={current === p.id ? 'page' : undefined}
               className={p.ghost ? 'is-ghost' : ''}
             >
@@ -205,6 +234,44 @@ function Sidebar({ site, route }: { site: Site; route: Route }) {
         <AppearanceMenu />
       </div>
     </aside>
+  );
+}
+
+/**
+ * The project the pages are scoped to, labelled like its board on the map, and the way back to
+ * the whole workspace (the same page, without the scope).
+ */
+function ScopePlate({
+  site,
+  scope,
+  parts,
+  leave,
+}: {
+  site: Site;
+  scope: Scope;
+  parts: number;
+  leave: string;
+}) {
+  return (
+    <div className="scope-plate" role="group" aria-label="Scope">
+      <span
+        className="dot"
+        style={{ background: site.projectColor.get(scope.project) ?? 'var(--ghost)' }}
+        aria-hidden
+      />
+      <span className="scope-name" title={scope.project}>
+        {scope.project}
+      </span>
+      <span className="scope-count mono">{parts === 1 ? '1 part' : `${parts} parts`}</span>
+      <a
+        className="scope-leave"
+        href={leave}
+        aria-label="Show the whole workspace"
+        title="Show the whole workspace"
+      >
+        <X size={14} aria-hidden />
+      </a>
+    </div>
   );
 }
 
