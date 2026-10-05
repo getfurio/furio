@@ -49,8 +49,8 @@ const MIN_READABLE_ZOOM = READABLE_ZOOM;
 const PANEL = 372;
 /** What the overlays of the full canvas cover: the filter, the buttons, the legend, the title. */
 const INSET = { top: 120, right: 72, bottom: 150, left: 40 };
-/** On phones only the filter and the buttons, at the top. */
-const INSET_NARROW = { top: 56, right: 16, bottom: 16, left: 16 };
+/** On phones only the filter and the buttons, a 44px band at the top. */
+const INSET_NARROW = { top: 68, right: 16, bottom: 16, left: 16 };
 
 /** The pace of the map's state changes (--step); none for a viewer who asked for less motion. */
 const step = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 150);
@@ -484,7 +484,9 @@ function Canvas({
             position="top-right"
           >
             <ZoomButtons fitPadding={{ padding, maxZoom: 1.2 }} />
-            {chrome && <ExportButtons site={site} />}
+            {/* On phones the row keeps the zoom: the downloads do not fit beside the filter at a
+                size a finger can hit. */}
+            {chrome && !narrow && <ExportButtons site={site} />}
           </Controls>
         </ReactFlow>
 
