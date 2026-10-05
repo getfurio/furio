@@ -18,7 +18,7 @@ import { ArrangeMenu } from '../ui/ArrangeMenu';
 import { FilterBox } from '../ui/FilterBox';
 import { DetailPanel } from '../ui/DetailPanel';
 import { ExportButtons, ZoomButtons } from './export';
-import type { Box } from './arrange';
+import { startView, type Box } from './arrange';
 import { layoutBoards, READABLE_ZOOM, scopeFor, type Layout, type TraceData } from './layout';
 import { Board, Footprint, LitContext, Ring, Trace, type Lit } from './parts';
 
@@ -44,7 +44,6 @@ const PANEL = 372;
 const INSET = { top: 120, right: 72, bottom: 150, left: 40 };
 /** On phones only the filter and the buttons, at the top. */
 const INSET_NARROW = { top: 56, right: 16, bottom: 16, left: 16 };
-const EDGE = 16;
 
 /** The pace of the map's state changes (--step); none for a viewer who asked for less motion. */
 const step = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 150);
@@ -74,16 +73,17 @@ function Canvas({
   });
   const flow = useReactFlow();
   const narrow = useNarrow();
-  // The full canvas keeps the legend and the title block clear of the boards.
-  const padding: FitViewOptions['padding'] =
-    chrome && !narrow
-      ? {
-          top: `${INSET.top}px`,
-          right: `${INSET.right}px`,
-          bottom: `${INSET.bottom}px`,
-          left: `${INSET.left}px`,
-        }
-      : 0.08;
+  // The full canvas keeps what covers it clear of the boards: the legend and the title block, or
+  // on phones the filter.
+  const inset = narrow ? INSET_NARROW : INSET;
+  const padding: FitViewOptions['padding'] = chrome
+    ? {
+        top: `${inset.top}px`,
+        right: `${inset.right}px`,
+        bottom: `${inset.bottom}px`,
+        left: `${inset.left}px`,
+      }
+    : 0.08;
   const host = useRef<HTMLDivElement>(null);
   const selected = view.sel ?? null;
   const update = (patch: Partial<ViewState>) => setView((current) => ({ ...current, ...patch }));
@@ -228,15 +228,14 @@ function Canvas({
     const [whole, ...closer] = around.frames;
     if (!box || !whole) return;
     const open = !!selectedRef.current;
-    const base = narrow ? INSET_NARROW : INSET;
-    const inset = {
-      ...base,
-      right: open && !narrow ? PANEL + 24 : base.right,
-      bottom: open && narrow ? box.height * 0.55 : base.bottom,
+    const room = {
+      ...inset,
+      right: open && !narrow ? PANEL + 24 : inset.right,
+      bottom: open && narrow ? box.height * 0.55 : inset.bottom,
     };
     const free = {
-      width: box.width - inset.left - inset.right,
-      height: box.height - inset.top - inset.bottom,
+      width: box.width - room.left - room.right,
+      height: box.height - room.top - room.bottom,
     };
     const fit = (frame: Box) => Math.min(free.width / frame.width, free.height / frame.height);
     const readable = fit(whole) >= MIN_READABLE_ZOOM;
@@ -246,18 +245,18 @@ function Canvas({
       : (closer.find((f) => fit(f) >= MIN_READABLE_ZOOM) ?? around.frames.at(-1)!);
     await flow.setViewport(
       {
-        x: inset.left + free.width / 2 - (frame.x + frame.width / 2) * zoom,
-        y: inset.top + free.height / 2 - (frame.y + frame.height / 2) * zoom,
+        x: room.left + free.width / 2 - (frame.x + frame.width / 2) * zoom,
+        y: room.top + free.height / 2 - (frame.y + frame.height / 2) * zoom,
         zoom,
       },
       { duration },
     );
   };
 
-  // Fit the whole map, but never below a readable zoom: a large workspace starts where its flow
-  // starts (the top, centred; the left edge when it runs right) and pans instead of shrinking
-  // every card to an unreadable size. A card selected in the URL is then brought into view, or
-  // everything it lights when the link asks a question.
+  // Fit the whole map, but never below a readable zoom: a large workspace opens where its flow
+  // starts, clear of what covers the canvas, and pans instead of shrinking every card to an
+  // unreadable size. A card selected in the URL is then brought into view, or everything it lights
+  // when the link asks a question.
   const fitted = useRef<Layout | null>(null);
   useEffect(() => {
     const before = fitted.current;
@@ -274,23 +273,14 @@ function Canvas({
       if (layout.around) return frameAround(layout.around, glide);
       const box = host.current?.getBoundingClientRect();
       if (!chrome || !box || flow.getZoom() >= MIN_READABLE_ZOOM) return;
-      const zoom = MIN_READABLE_ZOOM;
-      const inset = narrow ? INSET_NARROW : INSET;
-      if (layout.direction === 'RIGHT' && layout.width * zoom > box.width) {
-        // The first board whole by the left edge, its name clear of what covers the canvas.
-        const boards = layout.nodes.filter((n) => !n.parentId);
-        const left = Math.min(...boards.map((n) => n.position.x));
-        const top = Math.min(...boards.map((n) => n.position.y));
-        const bottom = Math.max(...boards.map((n) => n.position.y + Number(n.style?.height)));
-        const spare = box.height - inset.top - inset.bottom - (bottom - top) * zoom;
-        await flow.setViewport({
-          x: EDGE - left * zoom,
-          y: inset.top + Math.max(spare, 0) / 2 - top * zoom,
-          zoom,
-        });
-        return;
-      }
-      await flow.setViewport({ x: box.width / 2 - (layout.width / 2) * zoom, y: 120, zoom });
+      const boards = layout.nodes
+        .filter((n) => !n.parentId)
+        .map((n) => ({
+          ...n.position,
+          width: Number(n.style?.width),
+          height: Number(n.style?.height),
+        }));
+      if (boards.length) await flow.setViewport(startView(boards, box, inset, MIN_READABLE_ZOOM));
     };
     const id = requestAnimationFrame(() => {
       void fit().then(() => {

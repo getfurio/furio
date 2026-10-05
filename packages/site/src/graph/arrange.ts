@@ -359,3 +359,39 @@ function leave(box: Box, from: Point, to: Point): Point & { side: Side } {
   const side: Side = tx <= ty ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'bottom' : 'top';
   return { x: from.x + dx * t, y: from.y + dy * t, side };
 }
+
+/** What covers the edges of the canvas, in pixels. */
+export interface Inset {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/** How far from the left edge of the canvas a map that pans sideways starts. */
+const EDGE = 16;
+
+/**
+ * Where a map too large to fit opens, at a readable zoom: where its flow starts. Across, the
+ * boards are centred when they fit, otherwise they start whole by the left edge (a phone, or a
+ * flow that runs right); down, they are centred in the height left free when they fit it,
+ * otherwise the first starts under what covers the top.
+ */
+export function startView(
+  boards: Box[],
+  canvas: { width: number; height: number },
+  inset: Inset,
+  zoom: number,
+): { x: number; y: number; zoom: number } {
+  const left = Math.min(...boards.map((b) => b.x));
+  const right = Math.max(...boards.map((b) => b.x + b.width));
+  const top = Math.min(...boards.map((b) => b.y));
+  const bottom = Math.max(...boards.map((b) => b.y + b.height));
+  const wide = (right - left) * zoom > canvas.width - inset.left - inset.right;
+  const spare = canvas.height - inset.top - inset.bottom - (bottom - top) * zoom;
+  return {
+    x: wide ? EDGE - left * zoom : canvas.width / 2 - ((left + right) / 2) * zoom,
+    y: inset.top + Math.max(spare, 0) / 2 - top * zoom,
+    zoom,
+  };
+}
