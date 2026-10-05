@@ -1559,7 +1559,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
+  height: 44px;
   padding: 0 12px;
   font: inherit;
   font-size: 13px;
@@ -3344,8 +3344,9 @@ a:hover {
   }
 }
 
-/* Phones (the narrow map): the zoom and export buttons are a row at the top, beside the filter, in
-   the band the map keeps clear. A column down the right would cover the cards. */
+/* Phones (the narrow map): the zoom buttons are a row at the top, beside the filter, in the band
+   the map keeps clear. A column down the right would cover the cards. Everything in the band is
+   44px, a size a finger can hit. */
 @media (max-width: 760px) {
   .board-canvas .react-flow__controls {
     flex-direction: row;
@@ -3353,10 +3354,13 @@ a:hover {
 
   .board-canvas.has-arrange .react-flow__controls {
     margin-top: 15px;
-    margin-right: 55px;
+    margin-right: 67px;
   }
 
+  /* 42px inside the row's two hairlines: the row stands 44px, like the filter and Arrange. */
   .board-canvas .react-flow__controls-button {
+    width: 44px;
+    height: 42px;
     border-bottom: 0;
     border-right: 1px solid var(--border);
   }
@@ -3370,6 +3374,11 @@ a:hover {
     border-radius: 0 7px 7px 0;
   }
 
+  .arrange-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
   /* Labels open below the row, along its right edge. */
   .board-canvas .react-flow__controls-button:hover::after,
   .board-canvas .react-flow__controls-button:focus-visible::after {
@@ -3380,28 +3389,16 @@ a:hover {
 
   /* Open, the filter takes the whole band, over the row and Arrange. */
   .filter-bar {
+    top: 15px;
     right: 12px;
     z-index: 8;
+    min-height: 44px;
   }
 
   .changes-banner,
   .board-canvas.has-panel .changes-banner {
+    top: 67px;
     right: 12px;
-  }
-}
-
-/* The smallest phones have no room for Arrange beside the row: it drops below the band. */
-@media (max-width: 359px) {
-  .board-canvas.has-arrange .react-flow__controls {
-    margin-right: 15px;
-  }
-
-  .arrange {
-    top: 55px;
-  }
-
-  .board-canvas.has-arrange .changes-banner {
-    right: 55px;
   }
 }
 
