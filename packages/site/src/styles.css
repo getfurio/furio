@@ -21,6 +21,9 @@
   --accent-2: #8b8dff;
   --accent-soft: rgb(113 112 255 / 0.16);
   --accent-ring: 0 0 0 1px #7170ff, 0 0 0 4px rgb(113 112 255 / 0.22);
+  /* Text on a fill of the accent, and on a fill of a status colour. */
+  --on-accent: #fff;
+  --on-status: #fff;
 
   --layer-calls: #8b8dff;
   --layer-events: #3fb68b;
@@ -125,94 +128,244 @@
   color-scheme: light;
 }
 
-/* Palettes: Blueprint (drafting blue) and Circuit (solder mask green, gold traces). Furio is the
-   default above. They change surfaces, accent and layers; type colours stay recognisable. */
+/* Palettes: Blueprint (a drafted sheet, blue ink) and Circuit (a printed board, copper). Furio is
+   the default above. Each is a whole set built to one rule, so that it reads as one thing:
+   surfaces and text tinted with the palette's hue, the relation layers at one lightness and one
+   chroma, the thirteen types at another, and every text and line checked for contrast. A palette's
+   light block restates everything its dark block sets: both weigh the same as the light theme. */
 :root[data-palette='blueprint'] {
-  --bg: #07101f;
-  --canvas: #0a1628;
-  --surface: #0f1d33;
-  --surface-2: #13243e;
-  --surface-3: #1a2e4d;
-  --border-solid: #2a4266;
-  --accent: #3b82f6;
-  --accent-2: #60a5fa;
-  --accent-soft: rgb(59 130 246 / 0.18);
-  --accent-ring: 0 0 0 1px #3b82f6, 0 0 0 4px rgb(59 130 246 / 0.25);
-  --layer-calls: #93c5fd;
-  --layer-events: #5eead4;
-  --layer-data: #fcd34d;
-  --layer-serves: #f9a8d4;
-  --layer-depends: #64748b;
-  --dot: rgb(147 197 253 / 0.12);
-  --overlay-bg: rgb(15 29 51 / 0.88);
-  --edge-glow: drop-shadow(0 0 4px rgb(59 130 246 / 0.6));
+  --bg: #060f1a;
+  --canvas: #0a1726;
+  --surface: #101e30;
+  --surface-2: #162539;
+  --surface-3: #1f3148;
+  --border: rgb(185 212 241 / 0.11);
+  --border-2: rgb(185 212 241 / 0.2);
+  --border-solid: #3a4e68;
+  --highlight: inset 0 1px 0 rgb(185 212 241 / 0.04);
+  --text: #eef4fc;
+  --text-2: #afbfd5;
+  --text-3: #8b9db4;
+  --accent: #4ba3f7;
+  --accent-2: #7fc1ff;
+  --accent-soft: rgb(75 163 247 / 0.18);
+  --accent-ring: 0 0 0 1px #4ba3f7, 0 0 0 4px rgb(75 163 247 / 0.24);
+  --on-accent: #060f1a;
+  --on-status: #060f1a;
+
+  --layer-calls: #8cc3fc;
+  --layer-events: #7cd2ae;
+  --layer-data: #dbb970;
+  --layer-serves: #e3a6dd;
+  --layer-depends: #8997a8;
+
+  --type-service: #b7b7f3;
+  --type-function: #c1c382;
+  --type-job: #d7ace0;
+  --type-frontend: #8fc4f1;
+  --type-client: #7ccbe4;
+  --type-queue: #9ccd9c;
+  --type-topic: #84d0b5;
+  --type-database: #d7ba7d;
+  --type-cache: #f0a9a2;
+  --type-storage: #e9b089;
+  --type-external: #b5bfcb;
+  --type-proxy: #77cfcf;
+  --type-domain: #a3bdf5;
+
+  --ghost: #f7945a;
+  --error: #fe8b83;
+  --warning: #daa932;
+  --ok: #4fcc92;
+
+  --group-bg: transparent;
+  --overlay-bg: rgb(16 30 48 / 0.94);
+  --row-hover: rgb(185 212 241 / 0.03);
+  --notice-text: #fbc49f;
+  --edge-glow: drop-shadow(0 0 4px rgb(75 163 247 / 0.5));
+
+  /* The sheet: its squared grid, the line around a group and the firmer one around a card. */
+  --grid: rgb(185 212 241 / 0.04);
+  --grid-major: rgb(185 212 241 / 0.08);
+  --card-edge: #6d89aa;
+  --region-edge: #4d6582;
 }
 
 :root[data-theme='light'][data-palette='blueprint'] {
-  --bg: #f5f9ff;
-  --canvas: #eef4ff;
-  --surface: #ffffff;
-  --surface-2: #ffffff;
-  --surface-3: #e8f0fe;
-  --border-solid: #c7d7f2;
-  --accent: #2563eb;
-  --accent-2: #1d4ed8;
-  --accent-soft: rgb(37 99 235 / 0.12);
-  --accent-ring: 0 0 0 1px #2563eb, 0 0 0 4px rgb(37 99 235 / 0.18);
-  --layer-calls: #2563eb;
-  --layer-events: #0d9488;
-  --layer-data: #b45309;
-  --layer-serves: #db2777;
-  --layer-depends: #94a3b8;
-  --dot: rgb(37 99 235 / 0.14);
-  --overlay-bg: rgb(255 255 255 / 0.9);
+  --bg: #f7fafe;
+  --canvas: #edf3fb;
+  --surface: #fdfdfe;
+  --surface-2: #fdfdfe;
+  --surface-3: #e0ebf8;
+  --border: rgb(33 71 124 / 0.13);
+  --border-2: rgb(33 71 124 / 0.24);
+  --border-solid: #b3c6de;
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.6);
+  --text: #102239;
+  --text-2: #40546e;
+  --text-3: #5d7089;
+  --accent: #0164cf;
+  --accent-2: #004eb3;
+  --accent-soft: rgb(1 100 207 / 0.11);
+  --accent-ring: 0 0 0 1px #0164cf, 0 0 0 4px rgb(1 100 207 / 0.18);
+  --on-accent: #fff;
+  --on-status: #fff;
+
+  --layer-calls: #2d68b8;
+  --layer-events: #057c59;
+  --layer-data: #8d5e05;
+  --layer-serves: #984588;
+  --layer-depends: #606d7d;
+
+  --type-service: #5d57a4;
+  --type-function: #676803;
+  --type-job: #814a8d;
+  --type-frontend: #0f68a2;
+  --type-client: #046f87;
+  --type-queue: #2f7434;
+  --type-topic: #04755b;
+  --type-database: #7e5e01;
+  --type-cache: #9c433f;
+  --type-storage: #964d09;
+  --type-external: #5c646f;
+  --type-proxy: #067272;
+  --type-domain: #4160a7;
+
+  --ghost: #a44c03;
+  --error: #af3c3a;
+  --warning: #856302;
+  --ok: #067d51;
+
+  --group-bg: transparent;
+  --overlay-bg: rgb(253 253 254 / 0.95);
+  --row-hover: rgb(33 71 124 / 0.03);
+  --notice-text: #7b3702;
   --edge-glow: none;
+
+  --grid: rgb(33 71 124 / 0.05);
+  --grid-major: rgb(33 71 124 / 0.1);
+  --card-edge: #6282ad;
+  --region-edge: #8ea7c7;
 }
 
 :root[data-palette='circuit'] {
-  --bg: #04100a;
-  --canvas: #062014;
-  --surface: #0a2a1b;
-  --surface-2: #0d3322;
-  --surface-3: #124029;
-  --border-solid: #1f5a3c;
-  --accent: #d9a72e;
-  --accent-2: #f2c75c;
-  --accent-soft: rgb(217 167 46 / 0.18);
-  --accent-ring: 0 0 0 1px #d9a72e, 0 0 0 4px rgb(217 167 46 / 0.25);
-  --layer-calls: #f2c75c;
-  --layer-events: #7dd3fc;
-  --layer-data: #f87171;
-  --layer-serves: #e879f9;
-  --layer-depends: #6b8f7a;
-  --dot: rgb(242 199 92 / 0.1);
-  --overlay-bg: rgb(10 42 27 / 0.88);
-  --edge-glow: drop-shadow(0 0 4px rgb(217 167 46 / 0.55));
+  --bg: #080f0b;
+  --canvas: #0d1812;
+  --surface: #141f19;
+  --surface-2: #1a261f;
+  --surface-3: #24312a;
+  --border: rgb(214 236 223 / 0.1);
+  --border-2: rgb(214 236 223 / 0.18);
+  --border-solid: #3c4c43;
+  --highlight: inset 0 1px 0 rgb(214 236 223 / 0.04);
+  --text: #ecf4ef;
+  --text-2: #afbfb6;
+  --text-3: #8c9d93;
+  --accent: #dea645;
+  --accent-2: #eec066;
+  --accent-soft: rgb(222 166 69 / 0.16);
+  --accent-ring: 0 0 0 1px #dea645, 0 0 0 4px rgb(222 166 69 / 0.22);
+  --on-accent: #080f0b;
+  --on-status: #080f0b;
+
+  --layer-calls: #e0b771;
+  --layer-events: #76d3b4;
+  --layer-data: #dba9e6;
+  --layer-serves: #9ebdff;
+  --layer-depends: #8b9991;
+
+  --type-service: #b7b7f3;
+  --type-function: #c1c382;
+  --type-job: #d7ace0;
+  --type-frontend: #8fc4f1;
+  --type-client: #7ccbe4;
+  --type-queue: #9ccd9c;
+  --type-topic: #84d0b5;
+  --type-database: #d7ba7d;
+  --type-cache: #f0a9a2;
+  --type-storage: #e9b089;
+  --type-external: #b3c2b9;
+  --type-proxy: #77cfcf;
+  --type-domain: #a3bdf5;
+
+  --ghost: #f99262;
+  --error: #fd8994;
+  --warning: #bfb53b;
+  --ok: #4fcc92;
+
+  --dot: rgb(214 236 223 / 0.08);
+  --group-bg: rgb(214 236 223 / 0.02);
+  --overlay-bg: rgb(20 31 25 / 0.92);
+  --row-hover: rgb(214 236 223 / 0.03);
+  --notice-text: #fbc49f;
+  --edge-glow: drop-shadow(0 0 4px rgb(222 166 69 / 0.45));
+
+  /* The board: the edge of a chip. */
+  --card-edge: #3f5247;
 }
 
 :root[data-theme='light'][data-palette='circuit'] {
-  --bg: #f4f8f3;
-  --canvas: #ebf3ea;
-  --surface: #ffffff;
-  --surface-2: #ffffff;
-  --surface-3: #e2efe2;
-  --border-solid: #bfd8c3;
-  --accent: #b7791f;
-  --accent-2: #975a16;
-  --accent-soft: rgb(183 121 31 / 0.14);
-  --accent-ring: 0 0 0 1px #b7791f, 0 0 0 4px rgb(183 121 31 / 0.2);
-  --layer-calls: #b7791f;
-  --layer-events: #0284c7;
-  --layer-data: #dc2626;
-  --layer-serves: #a21caf;
-  --layer-depends: #8aa392;
-  --dot: rgb(21 128 61 / 0.12);
-  --overlay-bg: rgb(255 255 255 / 0.9);
+  --bg: #f6faf7;
+  --canvas: #ebf3ec;
+  --surface: #fcfefc;
+  --surface-2: #fcfefc;
+  --surface-3: #e1ebe2;
+  --border: rgb(25 37 27 / 0.11);
+  --border-2: rgb(25 37 27 / 0.2);
+  --border-solid: #b3c3b5;
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.6);
+  --text: #19251b;
+  --text-2: #49574b;
+  --text-3: #627064;
+  --accent: #955e05;
+  --accent-2: #7e4a03;
+  --accent-soft: rgb(149 94 5 / 0.12);
+  --accent-ring: 0 0 0 1px #955e05, 0 0 0 4px rgb(149 94 5 / 0.18);
+  --on-accent: #fff;
+  --on-status: #fff;
+
+  --layer-calls: #935a00;
+  --layer-events: #057c5d;
+  --layer-data: #894d97;
+  --layer-serves: #4963b3;
+  --layer-depends: #636f67;
+
+  --type-service: #5d57a4;
+  --type-function: #676803;
+  --type-job: #814a8d;
+  --type-frontend: #0f68a2;
+  --type-client: #046f87;
+  --type-queue: #2f7434;
+  --type-topic: #04755b;
+  --type-database: #7e5e01;
+  --type-cache: #9c433f;
+  --type-storage: #964d09;
+  --type-external: #5c675d;
+  --type-proxy: #067272;
+  --type-domain: #4160a7;
+
+  --ghost: #ab4501;
+  --error: #ae3b4c;
+  --warning: #736c01;
+  --ok: #067d51;
+
+  --dot: rgb(25 37 27 / 0.11);
+  --group-bg: rgb(25 37 27 / 0.02);
+  --overlay-bg: rgb(252 254 252 / 0.94);
+  --row-hover: rgb(25 37 27 / 0.03);
+  --notice-text: #7b3702;
   --edge-glow: none;
+
+  --card-edge: #9db1a3;
 }
 
 :root[data-theme='light'] ::selection {
   background: rgb(94 92 230 / 0.2);
+}
+
+:root[data-palette='blueprint'] ::selection,
+:root[data-palette='circuit'] ::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .appearance {
@@ -303,22 +456,22 @@
   background: #3fb68b;
 }
 .palette-blueprint .swatch i:nth-child(1) {
-  background: #0a1628;
+  background: #0a1726;
 }
 .palette-blueprint .swatch i:nth-child(2) {
-  background: #3b82f6;
+  background: #4ba3f7;
 }
 .palette-blueprint .swatch i:nth-child(3) {
-  background: #93c5fd;
+  background: #7cd2ae;
 }
 .palette-circuit .swatch i:nth-child(1) {
-  background: #062014;
+  background: #0d1812;
 }
 .palette-circuit .swatch i:nth-child(2) {
-  background: #d9a72e;
+  background: #dea645;
 }
 .palette-circuit .swatch i:nth-child(3) {
-  background: #7dd3fc;
+  background: #76d3b4;
 }
 
 .appearance-note {
@@ -972,7 +1125,7 @@ a:hover {
   text-transform: uppercase;
   padding: 1px 6px;
   border-radius: 999px;
-  color: #fff;
+  color: var(--on-status);
   background: var(--ok);
   box-shadow: var(--shadow-card);
 }
@@ -1015,7 +1168,7 @@ a:hover {
   padding: 0 6px;
   border-radius: 10px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 600;
   line-height: 20px;
@@ -1530,7 +1683,7 @@ a:hover {
   border-radius: 6px;
   border: 1px solid transparent;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -1542,7 +1695,7 @@ a:hover {
 
 .button:hover {
   background: var(--accent-2);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .button.quiet {
@@ -2910,33 +3063,186 @@ a:hover {
   border: 1px solid var(--border) !important;
 }
 
+/* ----------------------------------------------------------- arranging the map */
+
+/* The control sits above the zoom and export buttons, and moves with them. */
+.arrange {
+  position: absolute;
+  z-index: 7;
+  top: 15px;
+  right: 15px;
+}
+
+.board-canvas.has-arrange .react-flow__controls {
+  margin-top: 55px;
+}
+
+.board-canvas.has-panel .arrange {
+  right: 387px;
+}
+
+.arrange-toggle {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  backdrop-filter: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.arrange-toggle:hover,
+.arrange-toggle[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.arrange-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.arrange-menu {
+  top: 0;
+  right: calc(100% + 8px);
+  display: grid;
+  gap: 8px;
+  width: 276px;
+  max-width: calc(100vw - 80px);
+  padding: 12px;
+}
+
+.arrange-menu .segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.arrange-menu .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.arrange-menu .segmented button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.arrange-label {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.arrange-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+/* Around a component: the rings its neighbours sit on, by hops, and what each side is. */
+.ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-2);
+  border-radius: 50%;
+}
+
+.ring-hops,
+.ring-side {
+  position: absolute;
+  padding: 0 8px;
+  background: var(--canvas);
+  white-space: nowrap;
+}
+
+.ring-hops {
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.ring-side {
+  top: -10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.ring-side .mono {
+  margin-left: 4px;
+  font-family: var(--sans);
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.ring-side.is-before {
+  right: calc(50% + 14px);
+}
+
+.ring-side.is-after {
+  left: calc(50% + 14px);
+}
+
+/* On a narrow screen the same map is a stack to read down: each distance is a level, a rule
+   with its name set on it like the name of a ring, over the lines that cross it. */
+.board-canvas.is-around .board.is-level {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: none;
+}
+
+.board-canvas.is-around .board.is-level .board-label {
+  top: -7px;
+  left: 26px;
+  padding: 0 8px;
+  background: var(--canvas);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--text-2);
+}
+
+.board-canvas.is-around .board.is-level .board-label .mono {
+  font-size: 11px;
+}
+
+/* Moving the centre: the cards that stay glide to their new place. */
+.board-canvas.is-around .react-flow__node-footprint {
+  transition: transform var(--step) var(--ease);
+}
+
+@media (max-width: 860px) {
+  .board-canvas.has-panel .arrange {
+    right: 15px;
+  }
+}
+
 /* ----------------------------------------------------------- palette looks */
 
-/* Each palette draws the map in its own manner, not only its own colours. Furio is the base above:
-   soft cards, rounded bends, a dot grid. Blueprint is a drafted sheet: a squared grid, open
-   outlined cards, sharp hairlines, mono lettering. Circuit is a printed board: black chips with
-   gold pins, thick traces cut at 45 degrees, vias at the bends, silkscreen labels. */
-
-:root[data-palette='blueprint'] {
-  --bp-line: rgb(214 230 255 / 0.72);
-  --bp-faint: rgb(214 230 255 / 0.28);
-  --bp-grid: rgb(147 197 253 / 0.07);
-  --bp-grid-major: rgb(147 197 253 / 0.15);
-}
-
-:root[data-theme='light'][data-palette='blueprint'] {
-  --bp-line: rgb(29 78 216 / 0.7);
-  --bp-faint: rgb(29 78 216 / 0.3);
-  --bp-grid: rgb(37 99 235 / 0.07);
-  --bp-grid-major: rgb(37 99 235 / 0.16);
-}
+/* Blueprint and Circuit draw the same map in a manner of their own, quietly. The lettering, the
+   sizes and the states are those of Furio, so nothing gets harder to read: what changes is the
+   ground, the edge of a card, and the way a line bends and ends. Blueprint is a drafted sheet: a
+   faint squared grid, flat cards with one drawn edge, sharp bends, open arrowheads. Circuit is a
+   printed board: pins where the relations land, and traces cut at 45 degrees. */
 
 :root[data-palette='blueprint'] .board-canvas {
   background-image:
-    linear-gradient(var(--bp-grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bp-grid-major) 1px, transparent 1px),
-    linear-gradient(var(--bp-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px);
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size:
     100px 100px,
     100px 100px,
@@ -2944,103 +3250,70 @@ a:hover {
     20px 20px;
 }
 
+/* A region of the drawing: one fine line, with its name set on the line. */
 :root[data-palette='blueprint'] .board {
-  border: 1px dashed var(--bp-faint);
+  border-color: var(--region-edge);
   border-radius: 0;
-  background: transparent;
 }
 
 :root[data-palette='blueprint'] .board-label {
-  top: -9px;
+  top: -10px;
   left: 12px;
   padding: 0 8px;
   background: var(--canvas);
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-:root[data-palette='blueprint'] .board-label .mono {
-  font-family: var(--mono);
 }
 
 :root[data-palette='blueprint'] .footprint {
-  background: var(--canvas);
-  border: 1px solid var(--bp-line);
+  border-color: var(--card-edge);
   border-radius: 0;
   box-shadow: none;
-  outline: 1px solid var(--bp-faint);
-  outline-offset: 3px;
 }
 
 :root[data-palette='blueprint'] .footprint:hover {
-  background: var(--canvas);
-  border-color: var(--text);
+  border-color: var(--text-2);
 }
 
 :root[data-palette='blueprint'] .footprint.is-selected {
-  border-color: var(--accent-2);
-  outline-color: var(--accent-2);
-  box-shadow: none;
+  border-color: var(--accent);
+  box-shadow: var(--accent-ring);
 }
 
 :root[data-palette='blueprint'] .fp-icon {
-  border-radius: 50%;
-  background: transparent !important;
-  border: 1px solid currentColor !important;
-}
-
-:root[data-palette='blueprint'] .fp-id {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-:root[data-palette='blueprint'] .fp-type {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
+  border-radius: 0;
 }
 
 :root[data-palette='blueprint'] .trace {
-  stroke-width: 1.25;
   stroke-linejoin: miter;
   stroke-linecap: butt;
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
+/* The drafted centre line: long, short. */
 :root[data-palette='blueprint'] .trace.spawns,
 :root[data-palette='blueprint'] .trace.depends_on {
-  stroke-dasharray: 10 3 2 3;
+  stroke-dasharray: 9 3 2 3;
 }
 
 /* Drafted lines end square: the dots are as long as the line is thick. */
 :root[data-palette='blueprint'] .trace.is-non-critical {
-  --dots: 1.25 4;
+  --dots: 2 4;
   stroke-dasharray: var(--dots);
 }
 
 .trace-arrow.is-open {
   fill: none !important;
-  stroke-width: 1.25;
+  stroke-width: 1.5;
 }
 
 .trace-arrow.is-open.calls,
-.trace-origin.calls,
-.via.calls {
+.trace-origin.calls {
   stroke: var(--layer-calls);
   fill: var(--layer-calls);
 }
 .trace-arrow.is-open.publishes,
 .trace-arrow.is-open.consumes,
 .trace-origin.publishes,
-.via.publishes,
-.trace-origin.consumes,
-.via.consumes {
+.trace-origin.consumes {
   stroke: var(--layer-events);
   fill: var(--layer-events);
 }
@@ -3048,26 +3321,20 @@ a:hover {
 .trace-arrow.is-open.writes,
 .trace-arrow.is-open.reads_writes,
 .trace-origin.reads,
-.via.reads,
 .trace-origin.writes,
-.via.writes,
-.trace-origin.reads_writes,
-.via.reads_writes {
+.trace-origin.reads_writes {
   stroke: var(--layer-data);
   fill: var(--layer-data);
 }
 .trace-arrow.is-open.serves,
-.trace-origin.serves,
-.via.serves {
+.trace-origin.serves {
   stroke: var(--layer-serves);
   fill: var(--layer-serves);
 }
 .trace-arrow.is-open.spawns,
 .trace-arrow.is-open.depends_on,
 .trace-origin.spawns,
-.via.spawns,
-.trace-origin.depends_on,
-.via.depends_on {
+.trace-origin.depends_on {
   stroke: var(--layer-depends);
   fill: var(--layer-depends);
 }
@@ -3076,220 +3343,114 @@ a:hover {
   stroke: var(--accent-2);
 }
 
-.trace-group.is-lit .trace-origin,
-.trace-group.is-lit .via {
+.trace-group.is-lit .trace-origin {
   fill: var(--accent-2);
   stroke: var(--accent-2);
 }
 
+/* What floats over the sheet is flat and square, like the sheet. */
+:root[data-palette='blueprint'] .board-canvas .overlay,
+:root[data-palette='blueprint'] .board-canvas .detail-panel,
+:root[data-palette='blueprint'] .board-canvas .react-flow__controls {
+  border-color: var(--border-2);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root[data-palette='blueprint'] .board-canvas .react-flow__controls-button {
+  border-radius: 0;
+}
+
 /* Circuit: the board and its chips. */
-:root[data-palette='circuit'] {
-  --chip: #0c0e0d;
-  --chip-hover: #161a18;
-  --chip-edge: #2a2f2c;
-  --silk: #eef3ef;
-  --silk-2: #a9b8ae;
-  --copper: #d9a72e;
-}
-
-:root[data-theme='light'][data-palette='circuit'] {
-  --chip: #1b1f1d;
-  --chip-hover: #262b28;
-  --chip-edge: #0b0d0c;
-  --copper: #b7791f;
-}
-
 :root[data-palette='circuit'] .board-canvas {
-  background-image:
-    radial-gradient(var(--dot) 1.5px, transparent 1.5px),
-    repeating-linear-gradient(
-      45deg,
-      transparent 0 14px,
-      color-mix(in srgb, var(--accent) 3%, transparent) 14px 15px
-    );
-  background-size:
-    32px 32px,
-    auto;
+  background-size: 24px 24px;
 }
 
 :root[data-palette='circuit'] .board {
-  border: 1.5px solid color-mix(in srgb, var(--text) 45%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 3%, transparent);
-}
-
-/* Mounting holes in two corners. */
-:root[data-palette='circuit'] .board::before,
-:root[data-palette='circuit'] .board::after {
-  content: '';
-  position: absolute;
-  bottom: 10px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 2px solid var(--copper);
-  background: var(--canvas);
-}
-
-:root[data-palette='circuit'] .board::before {
-  left: 10px;
-}
-
-:root[data-palette='circuit'] .board::after {
-  right: 10px;
-}
-
-:root[data-palette='circuit'] .board-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-:root[data-palette='circuit'] .board-label .mono {
-  font-family: var(--mono);
-  font-weight: 500;
+  border-color: var(--border-2);
+  border-radius: 8px;
 }
 
 :root[data-palette='circuit'] .footprint {
-  background: var(--chip);
-  border: 1px solid var(--chip-edge);
-  border-radius: 3px;
-  box-shadow:
-    0 2px 0 rgb(0 0 0 / 0.35),
-    inset 0 1px 0 rgb(255 255 255 / 0.05);
-}
-
-/* Pin 1 marker. */
-:root[data-palette='circuit'] .footprint::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.18);
+  border-color: var(--card-edge);
+  border-radius: 6px;
 }
 
 :root[data-palette='circuit'] .footprint:hover {
-  background: var(--chip-hover);
-  border-color: var(--copper);
+  border-color: var(--text-3);
 }
 
 :root[data-palette='circuit'] .footprint.is-selected {
-  border-color: var(--copper);
-  box-shadow:
-    0 0 0 1px var(--copper),
-    0 0 18px color-mix(in srgb, var(--copper) 45%, transparent);
-}
-
-:root[data-palette='circuit'] .footprint.is-ghost {
-  background: transparent;
-}
-
-:root[data-palette='circuit'] .footprint.is-ghost .fp-id {
-  color: var(--text);
+  border-color: var(--accent);
 }
 
 :root[data-palette='circuit'] .fp-icon {
-  border-radius: 2px;
-  background: transparent !important;
-  border-color: rgb(255 255 255 / 0.12) !important;
+  border-radius: 4px;
 }
 
-:root[data-palette='circuit'] .fp-id {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--silk);
-}
-
-:root[data-palette='circuit'] .fp-type,
-:root[data-palette='circuit'] .fp-tech {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--silk-2);
-}
-
-:root[data-palette='circuit'] .status-pill {
-  color: var(--silk-2);
-  border-color: rgb(255 255 255 / 0.2);
-}
-
-/* Gold pins where the traces land. */
+/* Pins, in copper: where a relation lands on the chip. */
 :root[data-palette='circuit'] .pad {
-  width: 10px !important;
-  height: 6px !important;
+  width: 8px !important;
+  height: 4px !important;
   border-radius: 1px !important;
-  background: var(--copper) !important;
-  opacity: 1;
+  background: var(--accent) !important;
+  opacity: 0.6;
 }
 
 :root[data-palette='circuit'] .pad.is-vertical {
-  width: 6px !important;
-  height: 10px !important;
+  width: 4px !important;
+  height: 8px !important;
 }
 
 :root[data-palette='circuit'] .pad.is-lit {
   background: var(--accent-2) !important;
+  opacity: 1;
 }
 
 :root[data-palette='circuit'] .trace {
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linejoin: miter;
-  stroke-linecap: square;
+  stroke-linecap: butt;
   opacity: 0.85;
 }
 
-:root[data-palette='circuit'] .trace-group.is-lit .trace {
-  stroke-width: 3.5;
-}
-
 :root[data-palette='circuit'] .trace.is-non-critical {
-  --dots: 0.1 8;
+  stroke-linecap: round;
 }
 
-.trace-group .via {
-  stroke: var(--canvas);
-  stroke-width: 1.5;
+:root[data-palette='circuit'] .trace-group.is-lit .trace {
+  stroke-width: 2.5;
 }
 
-/* The legend and the title block follow the sheet: square and lettered on Blueprint, silkscreened
-   on Circuit. */
-:root[data-palette='blueprint'] .board-canvas .overlay.legend,
-:root[data-palette='blueprint'] .board-canvas .overlay.title-block {
-  border-radius: 0;
-  border-color: var(--bp-line);
+:root[data-palette='circuit'] .board-canvas .overlay {
+  border-radius: 6px;
+}
+
+:root[data-palette='circuit'] .board-canvas .detail-panel {
+  border-radius: 8px;
+}
+
+/* What is not declared keeps its dashed edge, in the ghost colour of the palette. */
+:root[data-palette='blueprint'] .footprint.is-ghost,
+:root[data-palette='circuit'] .footprint.is-ghost {
+  border-color: color-mix(in srgb, var(--ghost) 55%, transparent);
   box-shadow: none;
 }
 
-:root[data-palette='blueprint'] .title-block > div,
-:root[data-palette='blueprint'] .title-block > .tb-l {
-  border-color: var(--bp-faint);
+:root[data-palette='blueprint'] .board.is-ghost,
+:root[data-palette='circuit'] .board.is-ghost {
+  border-color: color-mix(in srgb, var(--ghost) 45%, transparent);
 }
 
-:root[data-palette='circuit'] .board-canvas .overlay.legend,
-:root[data-palette='circuit'] .board-canvas .overlay.title-block {
-  border-radius: 4px;
+:root[data-palette='blueprint'] .ghost-pill,
+:root[data-palette='circuit'] .ghost-pill,
+:root[data-palette='blueprint'] .ghost-tag,
+:root[data-palette='circuit'] .ghost-tag {
+  background: color-mix(in srgb, var(--ghost) 14%, transparent);
 }
 
-:root[data-palette='blueprint'] .title-block dt,
-:root[data-palette='blueprint'] .legend-title,
-:root[data-palette='circuit'] .title-block dt,
-:root[data-palette='circuit'] .legend-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-:root[data-palette='blueprint'] .title-block dd,
-:root[data-palette='blueprint'] .legend,
-:root[data-palette='circuit'] .title-block dd,
-:root[data-palette='circuit'] .legend {
-  font-family: var(--mono);
+:root[data-palette='blueprint'] .notice,
+:root[data-palette='circuit'] .notice {
+  border-color: color-mix(in srgb, var(--ghost) 32%, transparent);
+  background: color-mix(in srgb, var(--ghost) 9%, transparent);
 }
