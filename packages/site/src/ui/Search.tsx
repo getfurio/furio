@@ -4,13 +4,14 @@ import { TypeIcon } from '../graph/parts';
 import { search, type Site } from '../model';
 import { go, href, selectOnMap } from '../router';
 
-export function Search({ site }: { site: Site }) {
+/** `within`: the parts to search, in a project's scope (what its map shows). */
+export function Search({ site, within }: { site: Site; within?: ReadonlySet<string> }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const hits = useMemo(() => search(site, query), [site, query]);
+  const hits = useMemo(() => search(site, query, 12, within), [site, query, within]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

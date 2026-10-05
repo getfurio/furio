@@ -168,12 +168,21 @@ export interface SearchHit {
   score: number;
 }
 
-/** Ranks components by how well every word of the query matches their fields. */
-export function search(site: Site, query: string, limit = 12): SearchHit[] {
+/**
+ * Ranks components by how well every word of the query matches their fields; `within`, only
+ * those components (what a project's map shows).
+ */
+export function search(
+  site: Site,
+  query: string,
+  limit = 12,
+  within?: ReadonlySet<string>,
+): SearchHit[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return [];
   const hits: SearchHit[] = [];
   for (const c of site.model.components) {
+    if (within && !within.has(c.key)) continue;
     const fields: [string, number][] = [
       [c.id, 6],
       [c.key, 5],
@@ -231,6 +240,17 @@ export function revision(model: Model): string {
   return hash.toString(16).padStart(8, '0').slice(0, 7);
 }
 
+/** The given components and every part they relate to, in either direction. */
+export function withNeighbours(site: Site, keys: Iterable<string>): Set<string> {
+  const start = [...keys];
+  const out = new Set(start);
+  for (const key of start) {
+    for (const r of site.outgoing.get(key) ?? []) out.add(r.to);
+    for (const r of site.incoming.get(key) ?? []) out.add(r.from);
+  }
+  return out;
+}
+
 export type ImpactDirection = 'up' | 'down';
 
 export interface Impact {
@@ -279,10 +299,18 @@ export function facetValue(c: ModelComponent, key: FacetKey): string | undefined
   return key === 'status' ? (c.status ?? 'active') : c[key];
 }
 
-/** Distinct values of a facet with how many declared components have each, most common first. */
-export function facet(site: Site, key: FacetKey): { value: string; count: number }[] {
+/**
+ * Distinct values of a facet with how many declared components have each, most common first;
+ * `within`, among those components only.
+ */
+export function facet(
+  site: Site,
+  key: FacetKey,
+  within?: ReadonlySet<string>,
+): { value: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const c of site.model.components) {
+    if (within && !within.has(c.key)) continue;
     const value = facetValue(c, key);
     if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
   }

@@ -1,9 +1,10 @@
 import { Check, CircleAlert } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { extensionHealth, type PanelSection } from '../extensions';
 import { ExtensionSection } from '../ui/DetailPanel';
 import { STATUS_LABEL, type Site } from '../model';
-import { href } from '../router';
+import { href, linksIn } from '../router';
+import { contents, type Scope } from '../scope';
 import { PeekLink } from '../ui/Peek';
 
 interface Check {
@@ -16,31 +17,36 @@ interface Check {
   count: number;
 }
 
-/** How trustworthy the map is: who has not joined, what is invalid, what is missing. */
-export function HealthPage({ site }: { site: Site }) {
+/**
+ * How trustworthy the map is: who has not joined, what is invalid, what is missing. In a project's
+ * scope, its repos and issues, its components and the ghosts on its map; the repos in no project
+ * are the workspace's, counted but not listed.
+ */
+export function HealthPage({ site, scope }: { site: Site; scope?: Scope | undefined }) {
   const { model } = site;
+  const shown = useMemo(() => contents(site, scope), [site, scope]);
   const order = { invalid: 0, valid: 1, skipped: 2 } as const;
-  const repos = [...model.repos].sort(
+  const repos = [...shown.repos].sort(
     (a, b) => order[a.status] - order[b.status] || a.id.localeCompare(b.id),
   );
-  const ghosts = model.components.filter((c) => c.ghost);
-  const ownerless = model.components.filter((c) => !c.ghost && !c.owner);
-  const invalid = model.repos.filter((r) => r.status === 'invalid');
-  const noManifest = model.repos.filter(
+  const { ghosts, issues } = shown;
+  const ownerless = shown.components.filter((c) => !c.owner);
+  const invalid = shown.repos.filter((r) => r.status === 'invalid');
+  const noManifest = shown.repos.filter(
     (r) => r.status === 'skipped' && r.skipReason === 'no-manifest',
   );
-  const warnings = model.issues.filter((i) => i.severity === 'warning');
-  const retired = model.components.filter((c) => c.status);
+  const warnings = issues.filter((i) => i.severity === 'warning');
+  const retired = shown.components.filter((c) => c.status);
   const [extra, setExtra] = useState<PanelSection[]>([]);
   useEffect(() => {
     let live = true;
-    void extensionHealth(model).then((s) => live && setExtra(s));
+    void extensionHealth(model, scope?.project).then((s) => live && setExtra(s));
     return () => {
       live = false;
     };
-  }, [model]);
+  }, [model, scope]);
 
-  const checks: Check[] = [
+  const all: Check[] = [
     {
       id: 'invalid',
       target: 'repos',
@@ -77,7 +83,11 @@ export function HealthPage({ site }: { site: Site }) {
       count: warnings.length,
     },
   ];
+  // A repo without a manifest belongs to no project yet: a scope never has one.
+  const checks = scope ? all.filter((c) => c.id !== 'no-manifest') : all;
   const failing = checks.filter((c) => c.count > 0).length;
+  const name = <strong>{scope ? scope.project : model.workspace.id}</strong>;
+  const where = scope ? <>{name} project</> : <>{name} map</>;
 
   return (
     <div className="sheet">
@@ -85,13 +95,10 @@ export function HealthPage({ site }: { site: Site }) {
         <h1 style={{ fontFamily: 'var(--sans)' }}>Health</h1>
         <span className="tb-sub">
           {failing === 0 ? (
-            <>
-              Every check passes. The <strong>{model.workspace.id}</strong> map is in order.
-            </>
+            <>Every check passes. The {where} is in order.</>
           ) : (
             <>
-              {failing} of {checks.length} checks need attention on the{' '}
-              <strong>{model.workspace.id}</strong> map.
+              {failing} of {checks.length} checks need attention on the {where}.
             </>
           )}
         </span>
@@ -141,6 +148,14 @@ export function HealthPage({ site }: { site: Site }) {
           </tbody>
         </table>
       </div>
+
+      {scope && shown.unassigned > 0 && (
+        <p className="section-note scope-note">
+          {shown.unassigned === 1 ? '1 repo' : `${shown.unassigned} repos`} of the workspace{' '}
+          {shown.unassigned === 1 ? 'is' : 'are'} in no project: without a manifest, or with one
+          Furio could not read. <a href={linksIn().health()}>See the whole workspace</a>
+        </p>
+      )}
 
       {extra.length > 0 && (
         <div className="health-extra">
@@ -313,9 +328,11 @@ export function HealthPage({ site }: { site: Site }) {
         </Section>
       )}
 
-      <Section id="warnings" title="Issues" count={model.issues.length}>
-        {model.issues.length === 0 ? (
-          <p className="empty-state">No issues. Every manifest on the map is valid.</p>
+      <Section id="warnings" title="Issues" count={issues.length}>
+        {issues.length === 0 ? (
+          <p className="empty-state">
+            No issues. Every manifest {scope ? `of ${scope.project}` : 'on the map'} is valid.
+          </p>
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -328,7 +345,7 @@ export function HealthPage({ site }: { site: Site }) {
                 </tr>
               </thead>
               <tbody>
-                {model.issues.map((issue, i) => (
+                {issues.map((issue, i) => (
                   <tr key={i}>
                     <td className={`sev-${issue.severity}`}>{issue.severity}</td>
                     <td className="mono">{issue.repo}</td>

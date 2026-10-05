@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { changeMarks, changeSummary, extensionArrange, type ChangeMarks } from '../extensions';
 import { impact, matchesFilter, revision, type Site } from '../model';
 import { flowOnly, go, hasFilter, href, replaceView, type ViewState } from '../router';
+import { marksIn, projectScope } from '../scope';
 import { ArrangeMenu } from '../ui/ArrangeMenu';
 import { FilterBox } from '../ui/FilterBox';
 import { DetailPanel } from '../ui/DetailPanel';
@@ -101,12 +102,16 @@ function Canvas({
   // The layout changes only when the view hides what does not match; otherwise it dims.
   const filterKey = JSON.stringify(view.filter);
   const filter = useMemo(() => (view.only ? view.filter : {}), [view.only, filterKey]);
+  // A project's map is its scope: the filter offers, matches and counts only what it shows.
+  const scope = useMemo(() => (project ? projectScope(site, project) : undefined), [site, project]);
   const matches = useMemo(() => {
     if (!chrome || !hasFilter(view.filter)) return undefined;
     return new Set(
-      site.model.components.filter((c) => matchesFilter(c, view.filter)).map((c) => c.key),
+      site.model.components
+        .filter((c) => (!scope || scope.map.has(c.key)) && matchesFilter(c, view.filter))
+        .map((c) => c.key),
     );
-  }, [chrome, site, filterKey]);
+  }, [chrome, site, scope, filterKey]);
 
   useEffect(() => {
     let live = true;
@@ -338,11 +343,13 @@ function Canvas({
     let live = true;
     setMarks(undefined);
     if (chrome && view.since)
-      void changeMarks(view.since, site.model).then((m) => live && setMarks(m));
+      void changeMarks(view.since, site.model, project).then(
+        (m) => live && setMarks(m && scope ? marksIn(m, scope) : m),
+      );
     return () => {
       live = false;
     };
-  }, [chrome, view.since, site]);
+  }, [chrome, view.since, site, project, scope]);
 
   const lit = useMemo<Lit>(() => {
     const marked = {
@@ -395,6 +402,7 @@ function Canvas({
   const filters = chrome ? (
     <FilterBox
       site={site}
+      {...(scope ? { within: scope.map } : {})}
       view={view}
       matches={matches?.size ?? 0}
       onChange={update}

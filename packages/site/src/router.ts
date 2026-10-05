@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 /**
  * Hash routes, so the static site works on any host and sub-path without server rewrites:
- * #/ workspace · #/p/<project> · #/c/<project>/<component> · #/health · #/diagrams[?d=<key>]
+ * #/ workspace · #/c/<project>/<component> · #/health · #/catalog[?type=…&q=…] · #/diagrams[?d=<key>]
+ *
+ * A project is a scope: #/p/<project> is its map (the project and the parts of other projects it
+ * touches), and the pages under it show that project only, e.g. #/p/<project>/catalog or
+ * #/p/<project>/c/<project>/<component>. Links keep the scope of the page they are on.
  *
  * Map views carry their state in the query, so any view can be shared as a link:
  * ?sel=<project/component>&mode=impact|depends&depth=<n>&type=a,b&tech=…&owner=…&host=…&only=1
@@ -43,13 +47,14 @@ export interface ViewState {
   around?: string;
 }
 
+/** The pages; the map of a project is the root of its scope, the others carry it when they have one. */
 export type Route =
   | { name: 'workspace'; view: ViewState }
   | { name: 'project'; project: string; view: ViewState }
-  | { name: 'component'; key: string }
-  | { name: 'health' }
-  | { name: 'diagrams'; diagram?: string }
-  | { name: 'catalog'; type?: string; q?: string };
+  | { name: 'component'; key: string; scope?: string }
+  | { name: 'health'; scope?: string }
+  | { name: 'diagrams'; diagram?: string; scope?: string }
+  | { name: 'catalog'; type?: string; q?: string; scope?: string };
 
 export const FILTERS = ['type', 'tech', 'owner', 'host', 'provider', 'status'] as const;
 export type FilterKey = (typeof FILTERS)[number];
@@ -119,51 +124,146 @@ export function serializeView(view: ViewState): string {
 export function parseHash(hash: string): Route {
   const [path = '', query = ''] = hash.replace(/^#\/?/, '').split('?');
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
-  const view = parseView(query);
-  if (parts[0] === 'p' && parts[1]) return { name: 'project', project: parts[1], view };
+  if (parts[0] === 'p' && parts[1]) {
+    const route = pageRoute(parts.slice(2), query, parts[1]);
+    return route.name === 'workspace'
+      ? { name: 'project', project: parts[1], view: route.view }
+      : route;
+  }
+  return pageRoute(parts, query);
+}
+
+/** A page from its path, inside a project's scope when one is given. */
+function pageRoute(parts: string[], query: string, scope?: string): Route {
+  const scoped = scope ? { scope } : {};
   if (parts[0] === 'c' && parts[1] && parts[2])
-    return { name: 'component', key: `${parts[1]}/${parts[2]}` };
-  if (parts[0] === 'health' || parts[0] === 'repos') return { name: 'health' };
+    return { name: 'component', key: `${parts[1]}/${parts[2]}`, ...scoped };
+  if (parts[0] === 'health' || parts[0] === 'repos') return { name: 'health', ...scoped };
   if (parts[0] === 'catalog') {
     const params = new URLSearchParams(query);
     const type = params.get('type');
     const q = params.get('q');
-    return { name: 'catalog', ...(type ? { type } : {}), ...(q ? { q } : {}) };
+    return { name: 'catalog', ...(type ? { type } : {}), ...(q ? { q } : {}), ...scoped };
   }
   if (parts[0] === 'diagrams') {
     const diagram = new URLSearchParams(query).get('d');
-    return diagram ? { name: 'diagrams', diagram } : { name: 'diagrams' };
+    return { name: 'diagrams', ...(diagram ? { diagram } : {}), ...scoped };
   }
-  return { name: 'workspace', view };
+  return { name: 'workspace', view: parseView(query) };
+}
+
+/** The project a page is scoped to, if any. */
+export function routeScope(route: Route): string | undefined {
+  if (route.name === 'project') return route.project;
+  return route.name === 'workspace' ? undefined : route.scope;
+}
+
+/** The scope of the page on screen: the links of the map keep it. */
+export function currentScope(): string | undefined {
+  const hash = typeof window === 'undefined' ? undefined : window.location?.hash;
+  return hash ? routeScope(parseHash(hash)) : undefined;
 }
 
 /** Records the view in the URL without a navigation, so it can be shared as is. */
 export function replaceView(view: ViewState) {
   const [path] = window.location.hash.split('?');
-  const next = `${path || '#/'}${serializeView(view)}`;
-  if (next !== window.location.hash) history.replaceState(null, '', next);
+  replaceHash(`${path || '#/'}${serializeView(view)}`);
+}
+
+const REPLACED = 'furio-replace';
+
+/**
+ * Records what the page shows in the URL without a navigation; the links built from the URL on
+ * screen (leaving the scope, another project) follow it.
+ */
+export function replaceHash(next: string) {
+  if (next === window.location.hash) return;
+  history.replaceState(null, '', next);
+  window.dispatchEvent(new Event(REPLACED));
+}
+
+/** The page on screen as its URL says now, with what the page has recorded in it since. */
+export function useHere(): Route {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', update);
+    window.addEventListener(REPLACED, update);
+    return () => {
+      window.removeEventListener('hashchange', update);
+      window.removeEventListener(REPLACED, update);
+    };
+  }, []);
+  return useMemo(() => parseHash(hash), [hash]);
 }
 
 const withView = (view?: Partial<ViewState>) =>
   view ? serializeView({ mode: 'nets', depth: 0, ...view, filter: view.filter ?? {} }) : '';
 
+/** The pages of the map inside a project's scope, or across the workspace without one. */
+export function linksIn(scope?: string) {
+  const base = scope ? `#/p/${encodeURIComponent(scope)}` : '#';
+  return {
+    /** The project's map in a scope, the workspace's otherwise. */
+    map: (view?: Partial<ViewState>) => `${scope ? base : '#/'}${withView(view)}`,
+    component: (key: string) => `${base}/c/${key.split('/').map(encodeURIComponent).join('/')}`,
+    health: () => `${base}/health`,
+    /** The table of every component, optionally one type and a search. */
+    catalog: (type?: string, q?: string) => {
+      const params = new URLSearchParams();
+      if (type) params.set('type', type);
+      if (q) params.set('q', q);
+      const query = params.toString();
+      return `${base}/catalog${query ? `?${query}` : ''}`;
+    },
+    /** The diagrams page, scrolled to one diagram when a key is given. */
+    diagrams: (key?: string) => `${base}/diagrams${key ? `?d=${encodeURIComponent(key)}` : ''}`,
+  };
+}
+
+/** Links from the page on screen: the pages keep its scope, if it has one. */
 export const href = {
+  /** The whole workspace, out of any scope. */
   workspace: (view?: Partial<ViewState>) => `#/${withView(view)}`,
+  /** A project's map, which is also the way into its scope. */
   project: (project: string, view?: Partial<ViewState>) =>
     `#/p/${encodeURIComponent(project)}${withView(view)}`,
-  component: (key: string) => `#/c/${key.split('/').map(encodeURIComponent).join('/')}`,
-  health: () => '#/health',
-  /** The table of every component, optionally one type and a search. */
-  catalog: (type?: string, q?: string) => {
-    const params = new URLSearchParams();
-    if (type) params.set('type', type);
-    if (q) params.set('q', q);
-    const query = params.toString();
-    return `#/catalog${query ? `?${query}` : ''}`;
-  },
-  /** The diagrams page, scrolled to one diagram when a key is given. */
-  diagrams: (key?: string) => `#/diagrams${key ? `?d=${encodeURIComponent(key)}` : ''}`,
+  map: (view?: Partial<ViewState>) => linksIn(currentScope()).map(view),
+  component: (key: string) => linksIn(currentScope()).component(key),
+  health: () => linksIn(currentScope()).health(),
+  catalog: (type?: string, q?: string) => linksIn(currentScope()).catalog(type, q),
+  diagrams: (key?: string) => linksIn(currentScope()).diagrams(key),
 };
+
+/**
+ * The page on screen in another scope. Without one (the whole workspace) it keeps everything it
+ * shows; in another project, the same page with what still applies there (the catalog's tab and
+ * search). A component page becomes the project's map.
+ */
+export function pageIn(route: Route, scope?: string): string {
+  const to = linksIn(scope);
+  switch (route.name) {
+    case 'workspace':
+    case 'project':
+      return to.map(scope ? undefined : route.view);
+    case 'component':
+      return scope ? to.map() : to.component(route.key);
+    case 'health':
+      return to.health();
+    case 'catalog':
+      return to.catalog(route.type, route.q);
+    case 'diagrams':
+      return to.diagrams(scope ? undefined : route.diagram);
+  }
+}
+
+/** A link to a page of the map from elsewhere (an extension), kept in the scope on screen. */
+export function inScope(link: string): string {
+  const scope = currentScope();
+  if (!scope || !link.startsWith('#/') || link.startsWith('#/p/')) return link;
+  const rest = link.slice(2);
+  return `#/p/${encodeURIComponent(scope)}${rest && !rest.startsWith('?') ? '/' : ''}${rest}`;
+}
 
 export function go(to: string) {
   window.location.hash = to.slice(1);
@@ -181,13 +281,14 @@ export function useRoute(): Route {
 
 /**
  * Selects a component on the map on screen, without leaving it; when the map does not show it
- * (another page, filtered out), opens the workspace map with it selected.
+ * (another page, filtered out), opens the map of the scope with it selected (the search finds only
+ * what that map shows).
  */
 export function selectOnMap(key: string) {
   const handled = !window.dispatchEvent(
     new CustomEvent('furio-select', { detail: key, cancelable: true }),
   );
-  if (!handled) go(href.workspace({ sel: key }));
+  if (!handled) go(href.map({ sel: key }));
 }
 
 /**

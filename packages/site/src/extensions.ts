@@ -19,21 +19,33 @@ export interface FurioExtensions {
   ): PanelSection[] | undefined | Promise<PanelSection[] | undefined>;
   /**
    * What changed on the map over a period chosen among `changeOptions`: the map marks those
-   * cards and dims the rest.
+   * cards and dims the rest. In a project's scope the banner counts only the marked parts on its
+   * map and the project's removed ones; the relation counts are shown as returned.
    */
   changes?(context: {
     since: string;
     model: Model;
+    project?: string;
   }): ChangeMarks | null | undefined | Promise<ChangeMarks | null | undefined>;
   /** The periods offered for `changes`, e.g. { value: '7', label: 'Last 7 days' }. */
   changeOptions?: { value: string; label: string }[];
-  /** Extra columns for the catalog table, with a value per component. */
-  catalog?(context: { model: Model }): CatalogExtra | undefined | Promise<CatalogExtra | undefined>;
+  /**
+   * Extra columns for the catalog table, with a value per component. In a project's scope the
+   * table shows only the project's rows, whatever the cells.
+   */
+  catalog?(context: {
+    model: Model;
+    project?: string;
+  }): CatalogExtra | undefined | Promise<CatalogExtra | undefined>;
   /** Links to the host's own pages, shown in the sidebar (e.g. back to the workspace settings). */
   nav?(context: { model: Model }): NavLink[] | undefined | Promise<NavLink[] | undefined>;
-  /** Extra sections at the top of the health page. */
+  /**
+   * Extra sections at the top of the health page. In a project's scope they are shown as
+   * returned: give only what concerns `project`.
+   */
   health?(context: {
     model: Model;
+    project?: string;
   }): PanelSection[] | undefined | Promise<PanelSection[] | undefined>;
   /**
    * The host offers the other arrangements of the map (tiers, around a component, other groups
@@ -157,10 +169,10 @@ export async function extensionSections(
   }
 }
 
-/** Extension sections for the health page; a failing extension adds nothing. */
-export async function extensionHealth(model: Model): Promise<PanelSection[]> {
+/** Extension sections for the health page, of a project's scope if any; a failing one adds nothing. */
+export async function extensionHealth(model: Model, project?: string): Promise<PanelSection[]> {
   try {
-    const sections = await extensions().health?.({ model });
+    const sections = await extensions().health?.({ model, ...(project ? { project } : {}) });
     return Array.isArray(sections) ? sections.filter((s) => s && typeof s.title === 'string') : [];
   } catch {
     return [];
@@ -177,9 +189,13 @@ export function changeOptions(): { value: string; label: string }[] {
 }
 
 /** Marks for the Changes view; nothing when there is no extension or it fails. */
-export async function changeMarks(since: string, model: Model): Promise<ChangeMarks | undefined> {
+export async function changeMarks(
+  since: string,
+  model: Model,
+  project?: string,
+): Promise<ChangeMarks | undefined> {
   try {
-    const marks = await extensions().changes?.({ since, model });
+    const marks = await extensions().changes?.({ since, model, ...(project ? { project } : {}) });
     return marks && typeof marks.label === 'string' && marks.components ? marks : undefined;
   } catch {
     return undefined;
@@ -187,9 +203,12 @@ export async function changeMarks(since: string, model: Model): Promise<ChangeMa
 }
 
 /** Extra catalog columns; nothing when there is no extension or it fails. */
-export async function extensionCatalog(model: Model): Promise<CatalogExtra | undefined> {
+export async function extensionCatalog(
+  model: Model,
+  project?: string,
+): Promise<CatalogExtra | undefined> {
   try {
-    const extra = await extensions().catalog?.({ model });
+    const extra = await extensions().catalog?.({ model, ...(project ? { project } : {}) });
     return extra && Array.isArray(extra.columns) && extra.cells && typeof extra.cells === 'object'
       ? extra
       : undefined;
