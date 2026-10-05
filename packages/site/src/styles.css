@@ -3063,6 +3063,172 @@ a:hover {
   border: 1px solid var(--border) !important;
 }
 
+/* ----------------------------------------------------------- arranging the map */
+
+/* The control sits above the zoom and export buttons, and moves with them. */
+.arrange {
+  position: absolute;
+  z-index: 7;
+  top: 15px;
+  right: 15px;
+}
+
+.board-canvas.has-arrange .react-flow__controls {
+  margin-top: 55px;
+}
+
+.board-canvas.has-panel .arrange {
+  right: 387px;
+}
+
+.arrange-toggle {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  backdrop-filter: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.arrange-toggle:hover,
+.arrange-toggle[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.arrange-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.arrange-menu {
+  top: 0;
+  right: calc(100% + 8px);
+  display: grid;
+  gap: 8px;
+  width: 276px;
+  max-width: calc(100vw - 80px);
+  padding: 12px;
+}
+
+.arrange-menu .segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.arrange-menu .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.arrange-menu .segmented button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.arrange-label {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.arrange-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+/* Around a component: the rings its neighbours sit on, by hops, and what each side is. */
+.ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-2);
+  border-radius: 50%;
+}
+
+.ring-hops,
+.ring-side {
+  position: absolute;
+  padding: 0 8px;
+  background: var(--canvas);
+  white-space: nowrap;
+}
+
+.ring-hops {
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.ring-side {
+  top: -10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.ring-side .mono {
+  margin-left: 4px;
+  font-family: var(--sans);
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.ring-side.is-before {
+  right: calc(50% + 14px);
+}
+
+.ring-side.is-after {
+  left: calc(50% + 14px);
+}
+
+/* On a narrow screen the same map is a stack to read down: each distance is a level, a rule
+   with its name set on it like the name of a ring, over the lines that cross it. */
+.board-canvas.is-around .board.is-level {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: none;
+}
+
+.board-canvas.is-around .board.is-level .board-label {
+  top: -7px;
+  left: 26px;
+  padding: 0 8px;
+  background: var(--canvas);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--text-2);
+}
+
+.board-canvas.is-around .board.is-level .board-label .mono {
+  font-size: 11px;
+}
+
+/* Moving the centre: the cards that stay glide to their new place. */
+.board-canvas.is-around .react-flow__node-footprint {
+  transition: transform var(--step) var(--ease);
+}
+
+@media (max-width: 860px) {
+  .board-canvas.has-panel .arrange {
+    right: 15px;
+  }
+}
+
 /* ----------------------------------------------------------- palette looks */
 
 /* Blueprint and Circuit draw the same map in a manner of their own, quietly. The lettering, the

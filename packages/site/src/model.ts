@@ -133,6 +133,23 @@ export const TYPE_LABEL: Record<string, string> = {
   domain: 'Domain',
 };
 
+/** The same in the plural: catalog tabs, and the boards of a map grouped by type. */
+export const TYPE_PLURAL: Record<string, string> = {
+  service: 'Services',
+  function: 'Functions',
+  job: 'Jobs',
+  frontend: 'Frontends',
+  client: 'Client apps',
+  queue: 'Queues',
+  topic: 'Topics',
+  database: 'Databases',
+  cache: 'Caches',
+  storage: 'Storage',
+  proxy: 'Proxies',
+  domain: 'Domains',
+  external: 'External',
+};
+
 export const STATUS_LABEL: Record<string, string> = {
   deprecated: 'Deprecated',
   'dev-only': 'Dev only',
