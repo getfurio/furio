@@ -1134,6 +1134,46 @@ a:hover {
   background: var(--warning);
 }
 
+/* A host's badge (window.furioExtensions.badges): top left, clear of the Changes mark. */
+.card-badge {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  max-width: calc(100% - 96px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--text-2);
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  box-shadow: var(--shadow-card);
+}
+
+.card-badge.tone-ok,
+.card-badge.tone-warning,
+.card-badge.tone-error {
+  color: var(--on-status);
+  border-color: transparent;
+}
+
+.card-badge.tone-ok {
+  background: var(--ok);
+}
+
+.card-badge.tone-warning {
+  background: var(--warning);
+}
+
+.card-badge.tone-error {
+  background: var(--error);
+}
+
 .changes-banner {
   left: 50%;
   top: 64px;

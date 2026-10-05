@@ -7,6 +7,7 @@ import {
   changeOptions,
   changeSummary,
   extensionArrange,
+  extensionBadges,
   extensionCatalog,
   extensionNav,
   extensionHealth,
@@ -442,6 +443,42 @@ describe('extensions', () => {
     await withExtensions({ health: () => [{ title: 'Domains', items: [] }, null] }, async () => {
       expect(await extensionHealth(site.model)).toEqual([{ title: 'Domains', items: [] }]);
     });
+  });
+
+  it('takes card badges from the extension, as plain short text', async () => {
+    expect(await extensionBadges(site.model)).toEqual({});
+    await withExtensions(
+      {
+        badges: async () => ({
+          'shop/shop-api': {
+            label: 'Incident',
+            tone: 'error',
+            detail: 'Stripe reports elevated API errors.',
+          },
+          'shop/storefront': { label: 'A label that goes on and on', tone: 'red', detail: 7 },
+          'shop/worker': { label: '  ' },
+          'shop/db': null,
+        }),
+      },
+      async () => {
+        expect(await extensionBadges(site.model)).toEqual({
+          'shop/shop-api': {
+            label: 'Incident',
+            tone: 'error',
+            detail: 'Stripe reports elevated API errors.',
+          },
+          'shop/storefront': { label: 'A label that goes o…' },
+        });
+      },
+    );
+    await withExtensions(
+      {
+        badges: () => {
+          throw new Error('boom');
+        },
+      },
+      async () => expect(await extensionBadges(site.model)).toEqual({}),
+    );
   });
 
   it('offers the Changes view only with an extension that implements it', async () => {
