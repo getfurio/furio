@@ -27,7 +27,9 @@ drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Car
 - **Map** (`#/`): every project of the workspace and the dependencies between them. A map too
   large to read whole opens where it starts, at a readable size, and pans from there: the top of
   a flow that runs down, the left of one that runs right.
-- **Project** (`#/p/<project>`): one project, plus the parts of other projects it touches.
+- **Project** (`#/p/<project>`): one project, plus the parts of other projects it touches. It
+  is also the way into the project's scope: the other pages then show that project only
+  ([one project](#one-project)).
 - **Component** (`#/c/<project>/<component>`): owner, repo, links, every relation (pins), what it
   affects and what it needs (impact), and its diagrams. `j` / `k` move to the next and previous
   part.
@@ -39,6 +41,36 @@ drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Car
 - **Diagrams** (`#/diagrams`): every diagram of the workspace, grouped by project, each with the
   components it describes. Add them as `.mmd` or `.md` files in `.architecture/diagrams/` and list
   them under `diagrams:` in the manifest ([how](manifest.md#diagrams)).
+
+## One project
+
+In a workspace with several projects, a reader can look at one at a time. Click a project in the
+sidebar, or open a link that starts with `#/p/<project>`, and every page shows that project:
+
+- **Map**: the project, plus the parts of other projects it touches.
+- **Catalog**: the project's components.
+- **Health**: the project's repos and their issues, its components without an owner, and the
+  parts on its map that no repo declares. Repos in no project yet (without a manifest, or with
+  one Furio could not read) belong to the workspace: the page says how many and links to the
+  workspace's health.
+- **Diagrams**: the project's diagrams.
+
+The counts in the sidebar are the project's, the search finds what its map shows, and the filter
+offers the values of the cards on its map. A plate under the workspace name shows the project you
+are in; its **×** shows the whole workspace again, on the same page. A click on another project
+in the sidebar keeps the page: from the catalog of one project to the catalog of the other.
+
+The project is a prefix of the URL, so a shared link opens on it and every page keeps it:
+
+```
+#/p/shop
+#/p/shop/catalog?type=database
+#/p/shop/health
+#/p/shop/diagrams
+#/p/shop/c/platform/users-api
+```
+
+Links without the prefix show the whole workspace, as they always have.
 
 ## Moving around
 
@@ -146,8 +178,9 @@ window.furioExtensions = {
     cells: { 'shop/shop-api': { oncall: { value: 'team-payments' } } },
   }),
 
-  // Extra sections at the top of the health page, same shape as panel sections.
-  health({ model }) {
+  // Extra sections at the top of the health page, same shape as panel sections. `project` is
+  // set when the reader is in one project: return only what concerns it.
+  health({ model, project }) {
     return [];
   },
 };
@@ -156,6 +189,16 @@ window.furioExtensions = {
 Every member is optional and may fail without breaking the map. Items take `label`, `value`,
 an optional `href` (http(s) or a map link such as `#/c/shop/shop-api`), `detail` and `tone`
 (`ok`, `warning` or `error`).
+
+When the reader is in [one project](#one-project), `catalog`, `health` and `changes` also
+receive `project` (absent for the whole workspace) and are asked again when it changes:
+
+- `catalog`: the table shows only the project's rows, whatever the cells.
+- `health`: the sections are shown as returned, so give only what concerns `project`.
+- `changes`: the banner counts the marked parts on the project's map and the project's removed
+  parts; the relation counts are shown as returned.
+
+Map links in items (`#/c/shop/shop-api`, `#/health`) stay in the project the reader is in.
 
 The map's `index.html` carries a Content-Security-Policy: images, fonts and styles load only
 from the map's own host or inline (`data:`), nothing is embedded and no form is posted. It is
