@@ -14,9 +14,11 @@
   /* Opaque border, for renderers that do not read rgb() with alpha (Mermaid). */
   --border-solid: #3a3b42;
   --highlight: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  /* Every text reads at 4.5:1 or more on bg, canvas, surface and surface-2, in each palette and
+     theme (test/contrast.test.ts). */
   --text: #f7f8f8;
   --text-2: #8a8f98;
-  --text-3: #62666d;
+  --text-3: #80858d;
   --accent: #7170ff;
   --accent-2: #8b8dff;
   --accent-soft: rgb(113 112 255 / 0.16);
@@ -84,7 +86,7 @@
   --highlight: inset 0 1px 0 rgb(255 255 255 / 0.6);
   --text: #1b1b1f;
   --text-2: #5f6168;
-  --text-3: #8b8d94;
+  --text-3: #6b6d74;
   --accent: #5e5ce6;
   --accent-2: #4f4dd6;
   --accent-soft: rgb(94 92 230 / 0.12);
