@@ -6,6 +6,7 @@ import {
   changeMarks,
   changeOptions,
   changeSummary,
+  extensionArrange,
   extensionCatalog,
   extensionNav,
   extensionHealth,
@@ -13,9 +14,19 @@ import {
   extensionSections,
   safeHref,
 } from '../src/extensions';
+import {
+  arrangeAround,
+  between,
+  CARD,
+  groupsOf,
+  levelsAround,
+  mostConnected,
+  tiersOf,
+  type Box,
+} from '../src/graph/arrange';
 import { readable } from '../src/graph/parts';
 import { splitMarkdown } from '../src/markdown';
-import { href, parseHash, parseView, serializeView } from '../src/router';
+import { flowOnly, href, parseHash, parseView, serializeView } from '../src/router';
 import { makeRepo, manifest } from '../../core/test/helpers';
 
 const EXAMPLES = join(import.meta.dirname, '../../../examples/demo');
@@ -174,6 +185,21 @@ describe('router', () => {
     );
   });
 
+  it('keeps the arrangement in the link, and only what applies to it', () => {
+    const around = parseView('sel=platform/users-api&arrange=around&around=platform/users-api');
+    expect(around).toMatchObject({ arrange: 'around', around: 'platform/users-api' });
+    expect(serializeView(around)).toBe(
+      '?sel=platform/users-api&arrange=around&around=platform/users-api',
+    );
+    expect(serializeView(parseView('dir=down&group=host'))).toBe('?dir=down&group=host');
+    expect(serializeView(parseView('arrange=tiers&dir=right'))).toBe('?arrange=tiers&dir=right');
+    // Tiers have their own bands, and a map around a component has no direction.
+    expect(parseView('arrange=tiers&group=host').group).toBeUndefined();
+    expect(parseView('arrange=around&dir=down').dir).toBeUndefined();
+    expect(parseView('around=platform/users-api').around).toBeUndefined();
+    expect(parseView('arrange=spiral&dir=up&group=colour')).toEqual(parseView(''));
+  });
+
   it('parses routes and keeps the old repos link working', () => {
     expect(parseHash('#/c/shop/shop-api')).toEqual({ name: 'component', key: 'shop/shop-api' });
     expect(parseHash('#/repos')).toEqual({ name: 'health' });
@@ -204,6 +230,136 @@ describe('router', () => {
   });
 });
 
+describe('arranging the map', () => {
+  const { components, relations } = site.model;
+
+  it('gathers the boards of the flow by project, owner, host or type', () => {
+    expect(groupsOf(components, 'project').map((g) => [g.label, g.project])).toEqual([
+      ['platform', 'platform'],
+      ['shop', 'shop'],
+    ]);
+    expect(groupsOf(components, 'owner').map((g) => [g.label, g.members.length])).toEqual([
+      ['team-payments', 1],
+      ['team-platform', 3],
+      ['team-shop', 4],
+      ['team-shop-web', 1],
+    ]);
+    const types = groupsOf(components, 'type');
+    expect(types.find((g) => g.label === 'Services')?.members).toHaveLength(3);
+    expect(types.every((g) => g.project === undefined)).toBe(true);
+    // What has no value closes the list, and what no repo declares comes after it.
+    const ghost = { ...components[0]!, key: 'x/ghost', ghost: true, owner: undefined };
+    const loose = { ...components[0]!, key: 'x/loose', owner: undefined };
+    expect(
+      groupsOf([ghost, loose, ...components], 'owner')
+        .map((g) => g.label)
+        .slice(-2),
+    ).toEqual(['No owner', 'Not declared']);
+  });
+
+  it('puts the tiers in the order of the classic picture, without the empty ones', () => {
+    expect(tiersOf(components).map((t) => [t.label, t.members.length])).toEqual([
+      ['Entry points', 1],
+      ['Services', 4],
+      ['Messaging', 1],
+      ['Data', 2],
+      ['External', 1],
+    ]);
+  });
+
+  it('arranges the map around a component: what uses it on the left, what it uses on the right', () => {
+    expect(mostConnected(components, relations)).toBe('platform/users-api');
+    const around = arrangeAround(components, relations, 'platform/users-api');
+    const x = (key: string) => around.at.get(key)!.x;
+    expect([...around.at.keys()].sort()).toEqual([
+      'platform/email',
+      'platform/users-api',
+      'platform/users-db',
+      'shop/shop-api',
+      'shop/storefront',
+    ]);
+    expect(Math.max(x('shop/shop-api'), x('shop/storefront'))).toBeLessThan(
+      x('platform/users-api'),
+    );
+    expect(Math.min(x('platform/email'), x('platform/users-db'))).toBeGreaterThan(
+      x('platform/users-api'),
+    );
+    expect(around).toMatchObject({ usedBy: 2, dependsOn: 2, hidden: 4 });
+    expect(around.rings).toEqual([expect.objectContaining({ parts: 4 })]);
+  });
+
+  it('stacks the map for narrow screens: what uses the centre above, what it uses below', () => {
+    const { levels, hidden } = levelsAround(components, relations, 'shop/shop-api');
+    expect(levels.map((level) => [level.label, level.kind, level.members.length])).toEqual([
+      ['Used by · 1 hop', 'level', 1],
+      ['Centre', 'centre', 1],
+      ['Depends on · 1 hop', 'level', 4],
+      ['Depends on · 2 hops', 'level', 2],
+    ]);
+    expect(hidden).toBe(1);
+    // The farthest of what uses the centre comes first: the stack reads down the chain.
+    const chain = levelsAround(components, relations, 'platform/users-db').levels;
+    expect(chain.map((level) => level.id)).toEqual(['before:2', 'before:1', 'centre']);
+    // Inside a level too: the storefront calls the shop API, and both use the users API.
+    const users = levelsAround(components, relations, 'platform/users-api').levels[0]!;
+    expect(users.members.map((c) => c.key)).toEqual(['shop/storefront', 'shop/shop-api']);
+    // The same parts as the rings, whichever way the map is drawn.
+    const rings = arrangeAround(components, relations, 'shop/shop-api');
+    expect(levels.flatMap((level) => level.members.map((c) => c.key)).sort()).toEqual(
+      [...rings.at.keys()].sort(),
+    );
+  });
+
+  it('says what a view around a component can open on, from the whole map to the centre', () => {
+    const around = arrangeAround(components, relations, 'shop/shop-api');
+    const [whole, cards, near, centre] = around.frames;
+    const inside = (inner: Box, outer: Box) =>
+      inner.x >= outer.x &&
+      inner.y >= outer.y &&
+      inner.x + inner.width <= outer.x + outer.width &&
+      inner.y + inner.height <= outer.y + outer.height;
+    expect(inside(cards!, whole!)).toBe(true);
+    expect(inside(near!, cards!)).toBe(true);
+    expect(centre).toEqual({ ...around.at.get('shop/shop-api')!, ...CARD });
+    // The cards two hops away are on one side only: framing the cards alone is narrower.
+    expect(cards!.width).toBeLessThan(whole!.width - CARD.width);
+    for (const [key, at] of around.at) expect(inside({ ...at, ...CARD }, cards!), key).toBe(true);
+  });
+
+  it('keeps the cards of every ring apart, however many there are', () => {
+    // A hub used by thirty parts, each used by two more.
+    const part = (key: string) => ({ ...components[0]!, key, id: key, ghost: false });
+    const users = Array.from({ length: 30 }, (_, i) => `a/u${i}`);
+    const outer = users.flatMap((u) => [`${u}x`, `${u}y`]);
+    const all = ['a/hub', ...users, ...outer].map(part);
+    const rel = (from: string, to: string) => ({ ...relations[0]!, from, to });
+    const around = arrangeAround(
+      all,
+      [...users.map((u) => rel(u, 'a/hub')), ...outer.map((o) => rel(o, o.slice(0, -1)))],
+      'a/hub',
+    );
+    expect(around.at.size).toBe(all.length);
+    const boxes = [...around.at.values()];
+    const overlap = boxes.some((p, i) =>
+      boxes.some(
+        (q, j) => j > i && Math.abs(p.x - q.x) < CARD.width && Math.abs(p.y - q.y) < CARD.height,
+      ),
+    );
+    expect(overlap).toBe(false);
+    expect(Math.min(...boxes.map((p) => Math.min(p.x, p.y)))).toBeGreaterThanOrEqual(0);
+  });
+
+  it('draws a straight line from the edge of a card to the edge of the other', () => {
+    const a = { x: 0, y: 0, ...CARD };
+    const line = between(a, { x: 400, y: 0, ...CARD });
+    expect(line.from).toEqual({ x: 216, y: 38, side: 'right' });
+    expect(line.to).toEqual({ x: 400, y: 38, side: 'left' });
+    expect(between(a, { x: 0, y: 300, ...CARD }).to).toMatchObject({ y: 300, side: 'top' });
+    // Two relations between the same cards run side by side.
+    expect(between(a, { x: 400, y: 0, ...CARD }, 6).from.y).toBe(44);
+  });
+});
+
 describe('extensions', () => {
   const component = site.byKey.get('shop/shop-api')!;
   const withExtensions = async (ext: unknown, fn: () => Promise<void> | void) => {
@@ -218,6 +374,16 @@ describe('extensions', () => {
   it('works without any extension', async () => {
     expect(extensionIcon(component)).toBeUndefined();
     expect(await extensionSections(component, site.model)).toEqual([]);
+  });
+
+  it('offers the other arrangements of the map only when the host says so', async () => {
+    expect(extensionArrange()).toBe(false);
+    await withExtensions({ arrange: 'yes' }, () => expect(extensionArrange()).toBe(false));
+    await withExtensions({ arrange: true }, () => expect(extensionArrange()).toBe(true));
+    // Without them a link keeps the rest of its view and opens on the flow.
+    const link = parseView('sel=shop/shop-api&mode=impact&type=service&arrange=tiers&dir=right');
+    expect(serializeView(flowOnly(link))).toBe('?sel=shop/shop-api&mode=impact&type=service');
+    expect(flowOnly(parseView('arrange=around&around=shop/shop-api'))).toEqual(parseView(''));
   });
 
   it('takes icons and panel sections from window.furioExtensions', async () => {

@@ -10,16 +10,18 @@ import {
 import '@xyflow/react/dist/base.css';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { changeMarks, changeSummary, type ChangeMarks } from '../extensions';
+import { changeMarks, changeSummary, extensionArrange, type ChangeMarks } from '../extensions';
 import { impact, matchesFilter, revision, type Site } from '../model';
-import { go, hasFilter, href, replaceView, type ViewState } from '../router';
+import { flowOnly, go, hasFilter, href, replaceView, type ViewState } from '../router';
+import { ArrangeMenu } from '../ui/ArrangeMenu';
 import { FilterBox } from '../ui/FilterBox';
 import { DetailPanel } from '../ui/DetailPanel';
 import { ExportButtons, ZoomButtons } from './export';
-import { layoutBoards, scopeFor, type Layout, type TraceData } from './layout';
-import { Board, Footprint, LitContext, Trace, type Lit } from './parts';
+import type { Box } from './arrange';
+import { layoutBoards, READABLE_ZOOM, scopeFor, type Layout, type TraceData } from './layout';
+import { Board, Footprint, LitContext, Ring, Trace, type Lit } from './parts';
 
-const nodeTypes = { footprint: Footprint, board: Board };
+const nodeTypes = { footprint: Footprint, board: Board, ring: Ring };
 const edgeTypes = { trace: Trace };
 
 export interface BoardViewProps {
@@ -34,7 +36,17 @@ export interface BoardViewProps {
 }
 
 const DEFAULT_VIEW: ViewState = { mode: 'nets', depth: 0, filter: {} };
-const MIN_READABLE_ZOOM = 0.85;
+const MIN_READABLE_ZOOM = READABLE_ZOOM;
+/** What the detail panel covers on the right of the canvas, with its margin. */
+const PANEL = 372;
+/** What the overlays of the full canvas cover: the filter, the buttons, the legend, the title. */
+const INSET = { top: 120, right: 72, bottom: 150, left: 40 };
+/** On phones only the filter and the buttons, at the top. */
+const INSET_NARROW = { top: 56, right: 16, bottom: 16, left: 16 };
+const EDGE = 16;
+
+/** The pace of the map's state changes (--step); none for a viewer who asked for less motion. */
+const step = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 150);
 
 export function BoardView(props: BoardViewProps) {
   return (
@@ -53,17 +65,38 @@ function Canvas({
 }: BoardViewProps) {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<ViewState>(() => (focus ? { ...initial, sel: focus } : initial));
+  // The other arrangements are the host's to offer: without them a link opens on the flow.
+  const arrangeable = chrome && extensionArrange();
+  const [view, setView] = useState<ViewState>(() => {
+    const first = focus ? { ...initial, sel: focus } : initial;
+    return arrangeable ? first : flowOnly(first);
+  });
   const flow = useReactFlow();
   const narrow = useNarrow();
   // The full canvas keeps the legend and the title block clear of the boards.
   const padding: FitViewOptions['padding'] =
-    chrome && !narrow ? { top: '120px', right: '72px', bottom: '150px', left: '40px' } : 0.08;
+    chrome && !narrow
+      ? {
+          top: `${INSET.top}px`,
+          right: `${INSET.right}px`,
+          bottom: `${INSET.bottom}px`,
+          left: `${INSET.left}px`,
+        }
+      : 0.08;
   const host = useRef<HTMLDivElement>(null);
   const selected = view.sel ?? null;
   const update = (patch: Partial<ViewState>) => setView((current) => ({ ...current, ...patch }));
+  // Arranged around a component, the card that is selected becomes the centre.
+  const centred = (key: string): Partial<ViewState> =>
+    view.arrange === 'around' ? { sel: key, around: key } : { sel: key };
   const select = (key: string | null) =>
-    update(key ? { sel: key } : { sel: undefined, mode: 'nets', depth: 0 });
+    update(key ? centred(key) : { sel: undefined, mode: 'nets', depth: 0 });
+  const [arranging, setArranging] = useState(false);
+  // The viewer's choice of direction; on phones the layers run down unless they chose.
+  const direction =
+    view.dir === 'right' ? 'RIGHT' : view.dir === 'down' || narrow ? 'DOWN' : undefined;
+  // Around a component, on phones, the map is a stack: what uses it above, what it uses below.
+  const upright = chrome && view.arrange === 'around' && narrow;
 
   // The layout changes only when the view hides what does not match; otherwise it dims.
   const filterKey = JSON.stringify(view.filter);
@@ -77,7 +110,8 @@ function Canvas({
 
   useEffect(() => {
     let live = true;
-    setLayout(null);
+    // A map around a component stays on screen while its centre moves: the cards glide.
+    if (!(view.arrange === 'around' && layout?.around)) setLayout(null);
     const box = host.current?.getBoundingClientRect();
     layoutBoards(site, {
       ...scopeFor(site, {
@@ -85,15 +119,19 @@ function Canvas({
         ...(focus ? { focus } : {}),
         filter,
       }),
-      ...(narrow ? { direction: 'DOWN' as const } : {}),
+      ...(direction ? { direction } : {}),
       ...(box && box.height > 0 ? { canvas: { width: box.width, height: box.height } } : {}),
+      ...(chrome && view.arrange ? { arrange: view.arrange } : {}),
+      ...(chrome && view.group ? { group: view.group } : {}),
+      ...(chrome && view.around ? { centre: view.around } : {}),
+      ...(upright ? { upright } : {}),
     })
       .then((result) => live && setLayout(result))
       .catch((e: unknown) => live && setError((e as Error).message));
     return () => {
       live = false;
     };
-  }, [site, project, focus, narrow, filter]);
+  }, [site, project, focus, direction, upright, filter, view.arrange, view.group, view.around]);
 
   /** Brings a card into view when it is off screen or under the detail panel. */
   const reveal = (key: string, duration = 300) => {
@@ -175,25 +213,89 @@ function Canvas({
     return true;
   };
 
-  // Fit the whole map, but never below a readable zoom: a large workspace starts at the top,
-  // centred, and pans instead of shrinking every card to an unreadable size. A card selected in
-  // the URL is then brought into view, or everything it lights when the link asks a question.
+  /**
+   * Around a component the view opens on as much as reads at once: the rings whole, or every
+   * card, or the centre with the cards one hop away, or the centre alone. The rest is a pan
+   * away. With the panel open, in the part of the canvas it leaves free.
+   */
+  const frameAround = async (around: NonNullable<Layout['around']>, duration = 0) => {
+    const box = host.current?.getBoundingClientRect();
+    const [whole, ...closer] = around.frames;
+    if (!box || !whole) return;
+    const open = !!selectedRef.current;
+    const base = narrow ? INSET_NARROW : INSET;
+    const inset = {
+      ...base,
+      right: open && !narrow ? PANEL + 24 : base.right,
+      bottom: open && narrow ? box.height * 0.55 : base.bottom,
+    };
+    const free = {
+      width: box.width - inset.left - inset.right,
+      height: box.height - inset.top - inset.bottom,
+    };
+    const fit = (frame: Box) => Math.min(free.width / frame.width, free.height / frame.height);
+    const readable = fit(whole) >= MIN_READABLE_ZOOM;
+    const zoom = readable ? Math.min(fit(whole), 1.2) : MIN_READABLE_ZOOM;
+    const frame = readable
+      ? whole
+      : (closer.find((f) => fit(f) >= MIN_READABLE_ZOOM) ?? around.frames.at(-1)!);
+    await flow.setViewport(
+      {
+        x: inset.left + free.width / 2 - (frame.x + frame.width / 2) * zoom,
+        y: inset.top + free.height / 2 - (frame.y + frame.height / 2) * zoom,
+        zoom,
+      },
+      { duration },
+    );
+  };
+
+  // Fit the whole map, but never below a readable zoom: a large workspace starts where its flow
+  // starts (the top, centred; the left edge when it runs right) and pans instead of shrinking
+  // every card to an unreadable size. A card selected in the URL is then brought into view, or
+  // everything it lights when the link asks a question.
+  const fitted = useRef<Layout | null>(null);
   useEffect(() => {
+    const before = fitted.current;
+    fitted.current = layout;
     if (!layout) return;
-    requestAnimationFrame(() => {
-      void flow
-        .fitView({ padding, duration: 0, maxZoom: 1.2 })
-        .then(async () => {
-          const zoom = flow.getZoom();
-          const box = host.current?.getBoundingClientRect();
-          if (!chrome || !box || zoom >= MIN_READABLE_ZOOM) return;
-          const x = box.width / 2 - (layout.width / 2) * MIN_READABLE_ZOOM;
-          await flow.setViewport({ x, y: 120, zoom: MIN_READABLE_ZOOM });
-        })
-        .then(() => {
-          if (chrome && selectedRef.current && !frame(0)) reveal(selectedRef.current, 0);
+    // A new centre is one continuous change: the view follows at the pace of the cards.
+    const glide = before?.around && layout.around && before !== layout ? step() : 0;
+    // A map that came after this one frames itself: this one stops where it is.
+    let live = true;
+    const fit = async () => {
+      // A new map is measured first; one that stays on screen moves from where it is.
+      if (!glide) await flow.fitView({ padding, duration: 0, maxZoom: 1.2 });
+      if (!live) return;
+      if (layout.around) return frameAround(layout.around, glide);
+      const box = host.current?.getBoundingClientRect();
+      if (!chrome || !box || flow.getZoom() >= MIN_READABLE_ZOOM) return;
+      const zoom = MIN_READABLE_ZOOM;
+      const inset = narrow ? INSET_NARROW : INSET;
+      if (layout.direction === 'RIGHT' && layout.width * zoom > box.width) {
+        // The first board whole by the left edge, its name clear of what covers the canvas.
+        const boards = layout.nodes.filter((n) => !n.parentId);
+        const left = Math.min(...boards.map((n) => n.position.x));
+        const top = Math.min(...boards.map((n) => n.position.y));
+        const bottom = Math.max(...boards.map((n) => n.position.y + Number(n.style?.height)));
+        const spare = box.height - inset.top - inset.bottom - (bottom - top) * zoom;
+        await flow.setViewport({
+          x: EDGE - left * zoom,
+          y: inset.top + Math.max(spare, 0) / 2 - top * zoom,
+          zoom,
         });
+        return;
+      }
+      await flow.setViewport({ x: box.width / 2 - (layout.width / 2) * zoom, y: 120, zoom });
+    };
+    const id = requestAnimationFrame(() => {
+      void fit().then(() => {
+        if (live && chrome && selectedRef.current && !frame(0)) reveal(selectedRef.current, 0);
+      });
     });
+    return () => {
+      live = false;
+      cancelAnimationFrame(id);
+    };
   }, [layout, flow]);
 
   useEffect(() => {
@@ -202,7 +304,11 @@ function Canvas({
 
   useEffect(() => {
     if (!chrome || !selected || !layout) return;
-    const id = requestAnimationFrame(() => reveal(selected));
+    const id = requestAnimationFrame(() => {
+      // Around a component the view makes room for the panel; a new centre brings its own map.
+      if (!layout.around) reveal(selected);
+      else if (layout.around.centre === selected) void frameAround(layout.around, step());
+    });
     return () => cancelAnimationFrame(id);
     // Only when the selection changes: a new layout reveals it after fitting.
   }, [selected]);
@@ -275,13 +381,16 @@ function Canvas({
     if (!chrome) return;
     const onSelect = (event: Event) => {
       const key = (event as CustomEvent<string>).detail;
-      if (!layout?.nodes.some((n) => n.id === key)) return;
+      // Around a component, anything in the workspace can become the centre, even what the rings
+      // leave out; otherwise only what is on this map.
+      const reachable = view.arrange === 'around' && !view.only && !project && site.byKey.has(key);
+      if (!reachable && !layout?.nodes.some((n) => n.id === key)) return;
       event.preventDefault();
-      update({ sel: key, mode: 'nets', depth: 0 });
+      update({ ...centred(key), mode: 'nets', depth: 0 });
     };
     window.addEventListener('furio-select', onSelect);
     return () => window.removeEventListener('furio-select', onSelect);
-  }, [chrome, layout]);
+  }, [chrome, layout, project, view.arrange, view.only]);
 
   const filters = chrome ? (
     <FilterBox
@@ -292,11 +401,21 @@ function Canvas({
       collapsible={narrow}
     />
   ) : null;
+  const arrange = arrangeable ? (
+    <ArrangeMenu
+      view={view}
+      around={layout?.around}
+      open={arranging}
+      onOpen={setArranging}
+      onChange={update}
+    />
+  ) : null;
 
   if (error || !layout || !layout.nodes.length) {
     return (
-      <div className="board-canvas" ref={host}>
+      <div className={`board-canvas ${arrangeable ? 'has-arrange' : ''}`} ref={host}>
         {filters}
+        {arrange}
         <div className="layout-status" role={error ? 'alert' : 'status'}>
           {error
             ? `Layout failed: ${error}`
@@ -314,7 +433,10 @@ function Canvas({
 
   return (
     <LitContext.Provider value={lit}>
-      <div className={`board-canvas ${chrome && selectedComponent ? 'has-panel' : ''}`} ref={host}>
+      <div
+        className={`board-canvas ${arrangeable ? 'has-arrange' : ''} ${layout.around ? 'is-around' : ''} ${chrome && selectedComponent ? 'has-panel' : ''}`}
+        ref={host}
+      >
         <ReactFlow
           nodes={layout.nodes as Node[]}
           edges={layout.edges as Edge[]}
@@ -352,6 +474,7 @@ function Canvas({
         </ReactFlow>
 
         {filters}
+        {arrange}
 
         {chrome && selectedComponent && (
           <DetailPanel
@@ -360,7 +483,7 @@ function Canvas({
             view={view}
             reached={reach ? reach.distance.size - 1 : lit.edges.size}
             onChange={update}
-            onSelect={(key) => update({ sel: key })}
+            onSelect={(key) => update(centred(key))}
             onClose={() => select(null)}
           />
         )}

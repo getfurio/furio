@@ -6,8 +6,18 @@ import { useEffect, useState } from 'react';
  *
  * Map views carry their state in the query, so any view can be shared as a link:
  * ?sel=<project/component>&mode=impact|depends&depth=<n>&type=a,b&tech=…&owner=…&host=…&only=1
+ * &arrange=tiers|around&dir=right|down&group=owner|host|type&around=<project/component>
  */
 export type Mode = 'nets' | 'impact' | 'depends';
+
+/** How the map is laid out: by what depends on what, in bands by kind, or around one component. */
+export const ARRANGEMENTS = ['flow', 'tiers', 'around'] as const;
+export type Arrangement = (typeof ARRANGEMENTS)[number];
+/** What a board of the flow gathers. */
+export const GROUPINGS = ['project', 'owner', 'host', 'type'] as const;
+export type Grouping = (typeof GROUPINGS)[number];
+/** Which way the layers run; without it the map picks what fits the canvas. */
+export type Flow = 'right' | 'down';
 
 export interface ViewState {
   sel?: string;
@@ -23,6 +33,14 @@ export interface ViewState {
   only?: boolean;
   /** The Changes view: a period an extension understands (e.g. "7" days, "last"). */
   since?: string;
+  /** The arrangement, when it is not the flow. */
+  arrange?: Exclude<Arrangement, 'flow'>;
+  /** The direction of the layers, when the viewer chose one. */
+  dir?: Flow;
+  /** What the boards of the flow gather, when it is not the projects. */
+  group?: Exclude<Grouping, 'project'>;
+  /** The component at the centre, when the map is arranged around one. */
+  around?: string;
 }
 
 export type Route =
@@ -59,7 +77,26 @@ export function parseView(query: string): ViewState {
     if (values.length) view.filter[key] = values;
   }
   if (params.get('only') === '1' && hasFilter(view.filter)) view.only = true;
+  const arrange = params.get('arrange');
+  if (arrange === 'tiers' || arrange === 'around') view.arrange = arrange;
+  const dir = params.get('dir');
+  if ((dir === 'right' || dir === 'down') && view.arrange !== 'around') view.dir = dir;
+  const group = params.get('group');
+  if ((group === 'owner' || group === 'host' || group === 'type') && !view.arrange)
+    view.group = group;
+  const around = params.get('around');
+  if (around && view.arrange === 'around') view.around = around;
   return view;
+}
+
+/** The view on a map that offers no other arrangement than the flow: the rest of it, as it is. */
+export function flowOnly(view: ViewState): ViewState {
+  const plain = { ...view };
+  delete plain.arrange;
+  delete plain.dir;
+  delete plain.group;
+  delete plain.around;
+  return plain;
 }
 
 export function serializeView(view: ViewState): string {
@@ -71,6 +108,10 @@ export function serializeView(view: ViewState): string {
     if (view.filter[key]?.length) params.set(key, view.filter[key]!.join(','));
   if (view.only && hasFilter(view.filter)) params.set('only', '1');
   if (view.since) params.set('since', view.since);
+  if (view.arrange) params.set('arrange', view.arrange);
+  if (view.dir && view.arrange !== 'around') params.set('dir', view.dir);
+  if (view.group && !view.arrange) params.set('group', view.group);
+  if (view.around && view.arrange === 'around') params.set('around', view.around);
   const query = params.toString().replace(/%2F/g, '/').replace(/%2C/g, ',');
   return query ? `?${query}` : '';
 }

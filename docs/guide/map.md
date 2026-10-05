@@ -24,7 +24,9 @@ drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Car
 
 ## Views
 
-- **Map** (`#/`): every project of the workspace and the dependencies between them.
+- **Map** (`#/`): every project of the workspace and the dependencies between them. A map too
+  large to read whole opens where it starts, at a readable size, and pans from there: the top of
+  a flow that runs down, the left of one that runs right.
 - **Project** (`#/p/<project>`): one project, plus the parts of other projects it touches.
 - **Component** (`#/c/<project>/<component>`): owner, repo, links, every relation (pins), what it
   affects and what it needs (impact), and its diagrams. `j` / `k` move to the next and previous

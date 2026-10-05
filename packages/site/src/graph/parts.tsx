@@ -28,7 +28,8 @@ import { extensionIcon } from '../extensions';
 import { useAppearance, type Palette, type Theme } from '../theme';
 import { STATUS_LABEL, TYPE_LABEL, type ModelComponent } from '../model';
 import { href } from '../router';
-import type { BoardData, FootprintData, Point, TraceData } from './layout';
+import type { Side } from './arrange';
+import type { BoardData, FootprintData, Point, RingData, TraceData } from './layout';
 
 /** What is lit: the selected footprint, its nets, its neighbours. */
 export interface Lit {
@@ -51,14 +52,12 @@ export const LitContext = createContext<Lit>({
 
 type FootprintNode = Node<FootprintData, 'footprint'>;
 type BoardNode = Node<BoardData, 'board'>;
+type RingNode = Node<RingData, 'ring'>;
 type TraceEdge = Edge<TraceData, 'trace'>;
 
 export function Footprint({ id, data }: NodeProps<FootprintNode>) {
   const lit = useContext(LitContext);
-  // Circuit draws the cards as black chips whatever the theme.
-  const chip = useAppearance()[0].palette === 'circuit';
-  const { component, inPads, outPads, padAt, direction } = data;
-  const across = direction === 'RIGHT';
+  const { component, inPads, outPads, padAt, padSide } = data;
   const mark = lit.marks?.[id];
   const state =
     lit.selected === id
@@ -81,22 +80,14 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
       }
     >
       {inPads.map((pad) => (
-        <Handle
-          key={pad}
-          id={pad}
-          type="target"
-          position={across ? Position.Left : Position.Top}
-          className={`pad ${across ? '' : 'is-vertical'} ${lit.edges.has(edgeOf(pad)) ? 'is-lit' : ''}`}
-          style={across ? { top: padAt[pad]?.y, left: -5 } : { left: padAt[pad]?.x, top: -5 }}
-          isConnectable={false}
-        />
+        <Pad key={pad} id={pad} type="target" side={padSide[pad]} at={padAt[pad]} lit={lit} />
       ))}
       <span
         className="fp-icon"
         data-type={component.ghost ? undefined : component.type}
         aria-hidden
       >
-        <ComponentIcon component={component} {...(chip ? { surface: 'dark' as const } : {})} />
+        <ComponentIcon component={component} />
       </span>
       {mark && (
         <span className={`change-mark ${mark}`} title={mark === 'added' ? 'Added' : 'Changed'}>
@@ -133,21 +124,51 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
         </span>
       </span>
       {outPads.map((pad) => (
-        <Handle
-          key={pad}
-          id={pad}
-          type="source"
-          position={across ? Position.Right : Position.Bottom}
-          className={`pad ${across ? '' : 'is-vertical'} ${lit.edges.has(edgeOf(pad)) ? 'is-lit' : ''}`}
-          style={
-            across
-              ? { top: padAt[pad]?.y, right: -5 }
-              : { left: padAt[pad]?.x, bottom: -5, top: 'auto' }
-          }
-          isConnectable={false}
-        />
+        <Pad key={pad} id={pad} type="source" side={padSide[pad]} at={padAt[pad]} lit={lit} />
       ))}
     </div>
+  );
+}
+
+const POSITION: Record<Side, Position> = {
+  left: Position.Left,
+  right: Position.Right,
+  top: Position.Top,
+  bottom: Position.Bottom,
+};
+
+/** Where a relation lands on the card: just outside the edge it comes through. */
+function Pad({
+  id,
+  type,
+  side = 'left',
+  at,
+  lit,
+}: {
+  id: string;
+  type: 'source' | 'target';
+  side: Side | undefined;
+  at: Point | undefined;
+  lit: Lit;
+}) {
+  const upright = side === 'top' || side === 'bottom';
+  return (
+    <Handle
+      id={id}
+      type={type}
+      position={POSITION[side]}
+      className={`pad ${upright ? 'is-vertical' : ''} ${lit.edges.has(edgeOf(id)) ? 'is-lit' : ''}`}
+      style={
+        side === 'left'
+          ? { top: at?.y, left: -5 }
+          : side === 'right'
+            ? { top: at?.y, right: -5 }
+            : side === 'top'
+              ? { left: at?.x, top: -5 }
+              : { left: at?.x, bottom: -5, top: 'auto' }
+      }
+      isConnectable={false}
+    />
   );
 }
 
@@ -157,16 +178,56 @@ function edgeOf(pad: string): string {
 
 export function Board({ data }: NodeProps<BoardNode>) {
   const lit = useContext(LitContext);
-  const has = (keys: Iterable<string>) =>
-    [...keys].some((key) => key.startsWith(`${data.project}/`));
+  const members = useMemo(() => new Set(data.members), [data.members]);
+  const has = (keys: Iterable<string>) => [...keys].some((key) => members.has(key));
   const dim = lit.selected ? !has(lit.nodes) : lit.matches ? !has(lit.matches) : false;
+  const label = (
+    <>
+      {data.color && <span className="dot" style={{ background: data.color }} aria-hidden />}
+      {data.label}
+      {data.count !== undefined && (
+        <span className="mono">{data.ghost ? 'not declared' : parts(data.count)}</span>
+      )}
+    </>
+  );
   return (
-    <div className={`board ${data.ghost ? 'is-ghost' : ''} ${dim ? 'is-dim' : ''}`}>
-      <a className="board-label nopan" href={href.project(data.project)}>
-        <span className="dot" style={{ background: data.color }} aria-hidden />
-        {data.project}
-        <span className="mono">{data.ghost ? 'not declared' : `${data.count} parts`}</span>
-      </a>
+    <div
+      className={`board ${data.level ? 'is-level' : ''} ${data.ghost ? 'is-ghost' : ''} ${dim ? 'is-dim' : ''}`}
+    >
+      {data.project === undefined ? (
+        <span className="board-label">{label}</span>
+      ) : (
+        <a className="board-label nopan" href={href.project(data.project)}>
+          {label}
+        </a>
+      )}
+    </div>
+  );
+}
+
+const parts = (count: number) => (count === 1 ? '1 part' : `${count} parts`);
+
+/**
+ * Around a component: the ring its cards sit on, with how far they are and how many, and on the
+ * first one what each side is and how many parts it holds. The counts say what to pan to when a
+ * ring runs off the canvas.
+ */
+export function Ring({ data }: NodeProps<RingNode>) {
+  return (
+    <div className="ring">
+      <span className="ring-hops">
+        {data.hops === 1 ? '1 hop' : `${data.hops} hops`} · {parts(data.parts)}
+      </span>
+      {!!data.usedBy && (
+        <span className="ring-side is-before">
+          Used by <span className="mono">{data.usedBy}</span>
+        </span>
+      )}
+      {!!data.dependsOn && (
+        <span className="ring-side is-after">
+          Depends on <span className="mono">{data.dependsOn}</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -208,25 +269,12 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
           {nonCritical ? ' · non-critical' : ''}
         </title>
       </path>
-      {palette === 'circuit' &&
-        points
-          .slice(1, -1)
-          .map((p, i) => (
-            <circle
-              key={i}
-              className={`via ${relation.type}`}
-              cx={p.x}
-              cy={p.y}
-              r={3.5}
-              fill={LAYER_COLOR[relation.type]}
-            />
-          ))}
       {palette === 'blueprint' && (
         <circle
           className={`trace-origin ${relation.type}`}
           cx={points[0]!.x}
           cy={points[0]!.y}
-          r={2.5}
+          r={2}
           fill={LAYER_COLOR[relation.type]}
         />
       )}
@@ -241,7 +289,8 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
         <polygon
           className={`trace-arrow ${relation.type}`}
           fill={LAYER_COLOR[relation.type]}
-          points={arrow(before, end)}
+          // A thicker trace, ending beside a pin of its own colour, needs a larger head.
+          points={arrow(before, end, palette === 'circuit' ? 10 : 7)}
         />
       )}
     </g>
@@ -353,18 +402,15 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 export function ComponentIcon({
   component,
   size = 16,
-  surface,
 }: {
   component: ModelComponent;
   size?: number;
-  /** What the icon sits on, when it is not the theme's own surface. */
-  surface?: Theme;
 }) {
   const theme = useAppearance()[0].theme;
   const icon = component.ghost ? undefined : extensionIcon(component);
   if (icon) {
     const mask = `url("${icon.src.replace(/"/g, '%22')}") center / contain no-repeat`;
-    const brand = icon.color && readable(icon.color, surface ?? theme) ? icon.color : undefined;
+    const brand = icon.color && readable(icon.color, theme) ? icon.color : undefined;
     return (
       <span
         className="ext-icon"

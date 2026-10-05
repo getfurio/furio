@@ -7,28 +7,12 @@ import {
   displayName,
   STATUS_LABEL,
   TYPE_LABEL,
+  TYPE_PLURAL,
   type ModelComponent,
   type Site,
 } from '../model';
 import { href, type Route } from '../router';
 import { PeekLink } from '../ui/Peek';
-
-/** Plural tab names, in the order of the type list. */
-const TAB_LABEL: Record<string, string> = {
-  service: 'Services',
-  function: 'Functions',
-  job: 'Jobs',
-  frontend: 'Frontends',
-  client: 'Client apps',
-  queue: 'Queues',
-  topic: 'Topics',
-  database: 'Databases',
-  cache: 'Caches',
-  storage: 'Storage',
-  proxy: 'Proxies',
-  domain: 'Domains',
-  external: 'External',
-};
 
 interface Column {
   id: string;
@@ -84,7 +68,7 @@ export function CatalogPage({
   const tabs = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of declared) counts.set(c.type ?? '', (counts.get(c.type ?? '') ?? 0) + 1);
-    return Object.keys(TAB_LABEL)
+    return Object.keys(TYPE_PLURAL)
       .filter((t) => counts.has(t))
       .map((t) => ({ type: t, count: counts.get(t)! }));
   }, [declared]);
@@ -254,7 +238,7 @@ export function CatalogPage({
             href={href.catalog(t.type, query || undefined)}
             aria-current={type === t.type ? 'page' : undefined}
           >
-            {TAB_LABEL[t.type]} <span className="count">{t.count}</span>
+            {TYPE_PLURAL[t.type]} <span className="count">{t.count}</span>
           </a>
         ))}
       </nav>
