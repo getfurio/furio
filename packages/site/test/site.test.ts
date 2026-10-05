@@ -22,6 +22,7 @@ import {
   groupsOf,
   levelsAround,
   mostConnected,
+  startView,
   tiersOf,
   type Box,
 } from '../src/graph/arrange';
@@ -598,6 +599,35 @@ describe('arranging the map', () => {
     // The cards two hops away are on one side only: framing the cards alone is narrower.
     expect(cards!.width).toBeLessThan(whole!.width - CARD.width);
     for (const [key, at] of around.at) expect(inside({ ...at, ...CARD }, cards!), key).toBe(true);
+  });
+
+  it('opens a map too large to fit where its flow starts, clear of what covers the canvas', () => {
+    const zoom = 0.85;
+    // Where a box of the map lands on the canvas.
+    const at = (view: ReturnType<typeof startView>, box: Box) => ({
+      x: view.x + box.x * view.zoom,
+      y: view.y + box.y * view.zoom,
+    });
+    const phone = { width: 375, height: 650 };
+    const filter = { top: 56, right: 16, bottom: 16, left: 16 };
+    // Wider and taller than a phone: the widest board by the left edge, the first under the filter.
+    const first = { x: 120, y: 56, width: 450, height: 400 };
+    const widest = { x: 40, y: 500, width: 600, height: 300 };
+    const flow = startView([first, widest], phone, filter, zoom);
+    expect(at(flow, widest).x).toBeCloseTo(16);
+    expect(at(flow, first).y).toBeCloseTo(56);
+    // A column that fits across: centred.
+    const column = { x: 40, y: 56, width: 300, height: 1200 };
+    const centred = startView([column], phone, filter, zoom);
+    expect(at(centred, column).x + (column.width * zoom) / 2).toBeCloseTo(phone.width / 2);
+    // A flow that runs right, wider than the screen but not as tall: whole by the left edge,
+    // centred in the height the legend and the filter leave free.
+    const desk = { width: 1200, height: 800 };
+    const overlays = { top: 120, right: 72, bottom: 150, left: 40 };
+    const row = { x: 40, y: 56, width: 2000, height: 300 };
+    const right = startView([row], desk, overlays, zoom);
+    expect(at(right, row).x).toBeCloseTo(16);
+    expect(at(right, row).y + (row.height * zoom) / 2).toBeCloseTo(120 + (800 - 120 - 150) / 2);
   });
 
   it('keeps the cards of every ring apart, however many there are', () => {
