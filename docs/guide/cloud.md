@@ -97,6 +97,23 @@ manifest has errors. Furio Cloud checks it again against the rest of the workspa
 with any problem, reported against your local files. Each upload replaces that repo's previous
 one; the other repos stay as they are.
 
+## The workspace
+
+At [getfurio.com/app](https://getfurio.com/app) each workspace has a page per section, listed on
+the left (at the top on a phone) under the switch to your other workspaces:
+
+- **Overview**: the repos, the components, the last upload and the members; what needs a look,
+  each with a link to it (repos left out of the map, warnings, components referenced but not
+  declared and, on the paid plans, provider incidents and domain problems); the repos with their
+  state, and the last changes.
+- **Changes**: every upload and what it changed on the map, filterable by project.
+- **Incidents** and **Domains**: the provider incidents and the domain checks, on Individual and
+  Business.
+- **Members**: who can sign in; the owner adds and removes them.
+- **Plan**: the plans, the trial and the billing.
+- **Settings**: the address of the map, the GitHub account, the email digests and the incident
+  emails, a new upload token, and deleting the workspace.
+
 ## Try it before the first push
 
 From the repo, with the token in `FURIO_UPLOAD_TOKEN`:
@@ -128,26 +145,26 @@ and, on the paid plans, other ways to lay it out:
   on every plan, Free included;
 - in the detail panel, when each repo last uploaded and from which commit;
 - the **history** of the map: every upload is kept with what it changed (7 days on Free, 90 on
-  Individual, a year on Business). The workspace page lists the changes by upload, filterable
-  by project; on the map, **Changes** in the filter bar marks what was added or changed in a
-  period, and the panel shows the recent changes of each component;
+  Individual, a year on Business). **Changes**, in the workspace, lists the uploads and what each
+  changed, filterable by project; on the map, **Changes** in the filter bar marks what was added or
+  changed in a period, and the panel shows the recent changes of each component;
 - on Individual and Business, **email digests** of what is new on the map: broken references,
   components referenced but not declared, repos that have not uploaded for 30 days, components
   without an owner. At most one email a day, each problem once, to every member; turn them off
-  from the workspace page;
-- on Individual and Business, **domain checks**: every component with `type: domain` and its
-  host name in `name` (`name: example.com`) is checked every day: when the registration expires
-  (RDAP), the certificate served on port 443, and that DNS resolves. The results show in the
-  panel, on the health page and on the workspace page, and members get an email 30, 14, 7 and 1
-  days before an expiry, or as soon as a certificate is not valid;
+  in the workspace's **Settings**;
+- on Individual and Business, **domain checks**: every component with `type: domain` and its host
+  name in `name` (`name: example.com`) is checked every day: when the registration expires (RDAP),
+  the certificate served on port 443, and that DNS resolves. The results show in the panel, on the
+  health page and in the workspace's **Domains**, and members get an email 30, 14, 7 and 1 days
+  before an expiry, or as soon as a certificate is not valid;
 - on Individual and Business, **provider incidents**: when the `provider` of a component (or its
-  `runtime`, for hosting platforms such as `vercel` or `cloudflare`) has a public status page
-  that Furio reads, an incident the provider reports there shows on the map, as a badge on the
-  cards of the components that use it, a section in their panel and an entry on the health page,
-  and on the workspace page. Furio reads each page every 5 minutes. Members get an email when an
-  incident starts, with a link to what depends on each component, and another when it closes; on
-  the workspace page you choose which incidents (major and critical, the default; minor too; or
-  none). All of it is what the provider reports: status pages can be late or incomplete, and
+  `runtime`, for hosting platforms such as `vercel` or `cloudflare`) has a public status page that
+  Furio reads, an incident the provider reports there shows on the map, as a badge on the cards of
+  the components that use it, a section in their panel and an entry on the health page, and in the
+  workspace's **Incidents**. Furio reads each page every 5 minutes. Members get an email when an
+  incident starts, with a link to what depends on each component, and another when it closes; in the
+  workspace's **Settings** you choose which incidents (major and critical, the default; minor too;
+  or none). All of it is what the provider reports: status pages can be late or incomplete, and
   Furio cannot confirm them;
 - on Individual and Business, **Arrange**: the map by tiers, around one component, or grouped by
   owner, host or type. [Arranging the map](#arranging-the-map) describes each.
@@ -195,15 +212,14 @@ Members are the people who can sign in to a workspace. On Free they manage it (t
 settings) while the map stays public; on Individual and Business they are the only ones who see
 the map. Individual has one member, Business has no limit.
 
-Whoever creates the workspace is its owner. From the **Members** section of the workspace page,
-the owner:
+Whoever creates the workspace is its owner. From the workspace's **Members** page, the owner:
 
 - adds a member by email. Furio sends them a link to sign in, and they get access as soon as
   they sign in with that address: by email link, or with GitHub if it is their account's primary
   email;
 - removes a member, who loses the map and the workspace at their next request.
 
-The other members can leave from the same section. Only the owner can delete the workspace, and
+The other members can leave from the same page. Only the owner can delete the workspace, and
 the owner cannot leave it: when they delete their account, the member who has been there
 longest becomes the owner, and the account page says who before you confirm. A workspace never
 stays without members.
@@ -217,7 +233,7 @@ without access, until the owner removes them or the workspace goes back to Busin
 
 ## Leaving
 
-From the workspace page the owner can delete a workspace: its map, every repo's manifest, its
-tokens and its members go at once, for good. Cancel a running subscription first. From your
-account page you can delete your account: the workspaces you own pass to their next member, and
-a workspace where you are the only member has to be deleted first.
+From the workspace's **Settings** the owner can delete a workspace: its map, every repo's manifest,
+its tokens and its members go at once, for good. Cancel a running subscription first. From your
+account page you can delete your account: the workspaces you own pass to their next member, and a
+workspace where you are the only member has to be deleted first.
