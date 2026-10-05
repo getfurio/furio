@@ -44,6 +44,7 @@ import {
   type DiagramFind,
 } from '../src/router';
 import { contents, mapWith, marksIn, projectScope } from '../src/scope';
+import { localCss } from '../src/ui/sanitize';
 import { makeRepo, manifest } from '../../core/test/helpers';
 
 const EXAMPLES = join(import.meta.dirname, '../../../examples/demo');
@@ -968,6 +969,40 @@ describe('markdown diagrams', () => {
     expect(splitMarkdown('```mermaid\nA-->B\n'.repeat(60_000))).toHaveLength(1);
     // Quadratic, it took half a minute and froze the page; linear, a few milliseconds.
     expect(performance.now() - start).toBeLessThan(3000);
+  });
+});
+
+describe('diagram styles', () => {
+  it('keeps what refers to the diagram itself and turns off what would fetch', () => {
+    const own =
+      '#m1 .node rect{fill:#fff;stroke:#333}#m1 .flowchart-link{marker-end:url(#m1_arrow)}';
+    expect(localCss(own)).toBe(own);
+    expect(localCss('fill: url( "#grad" )')).toBe('fill: url( "#grad" )');
+    expect(
+      localCss('mask-image:url(https://example.com/x.png);cursor:URL("//example.com/c.png"),auto'),
+    ).toBe(
+      'mask-image:url-off(https://example.com/x.png);cursor:URL-off("//example.com/c.png"),auto',
+    );
+    expect(localCss('url(https://example.com/paint.svg#g)')).toBe(
+      'url-off(https://example.com/paint.svg#g)',
+    );
+    expect(localCss("background:image-set('https://example.com/a.png' 1x)")).toBe(
+      "background:image-set-off('https://example.com/a.png' 1x)",
+    );
+    expect(localCss('mask:-webkit-image-set(url(x.png) 1x)')).toBe(
+      'mask:-webkit-image-set-off(url-off(x.png) 1x)',
+    );
+    expect(localCss('@import "https://example.com/a.css";')).toBe(
+      '@import-off "https://example.com/a.css";',
+    );
+  });
+
+  it('drops a style that hides an address behind escapes', () => {
+    expect(localCss('mask-image:u\\72l(https://example.com/x.png)')).toBe('');
+    expect(localCss('mask-image:\\75 rl(https://example.com/x.png)')).toBe('');
+    expect(localCss('@\\69mport "https://example.com/a.css"')).toBe('');
+    // An escape that hides nothing is left as it is.
+    expect(localCss('.a\\:b{fill:#fff}')).toBe('.a\\:b{fill:#fff}');
   });
 });
 
