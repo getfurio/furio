@@ -2407,6 +2407,14 @@ a:hover {
   opacity: 0.7;
 }
 
+/* A diagram as wide as its frame leaves the corner to the Enlarge button; a phone has no room
+   to give, and the button stays over it. */
+@media (min-width: 861px) {
+  .diagram-body .mermaid-out {
+    padding: 0 38px;
+  }
+}
+
 .mermaid-wrap:hover .enlarge,
 .mermaid-wrap .enlarge:focus-visible {
   opacity: 1;
