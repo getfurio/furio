@@ -10,7 +10,14 @@ import {
 import '@xyflow/react/dist/base.css';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { changeMarks, changeSummary, extensionArrange, type ChangeMarks } from '../extensions';
+import {
+  changeMarks,
+  changeSummary,
+  extensionArrange,
+  extensionBadges,
+  type CardBadge,
+  type ChangeMarks,
+} from '../extensions';
 import { impact, matchesFilter, revision, type Site } from '../model';
 import { flowOnly, go, hasFilter, href, replaceView, type ViewState } from '../router';
 import { ArrangeMenu } from '../ui/ArrangeMenu';
@@ -344,10 +351,20 @@ function Canvas({
     };
   }, [chrome, view.since, site]);
 
+  const [badges, setBadges] = useState<Record<string, CardBadge>>({});
+  useEffect(() => {
+    let live = true;
+    void extensionBadges(site.model).then((b) => live && setBadges(b));
+    return () => {
+      live = false;
+    };
+  }, [site]);
+
   const lit = useMemo<Lit>(() => {
     const marked = {
       ...(marks ? { marks: marks.components } : {}),
       ...(matches ? { matches } : {}),
+      badges,
     };
     if (!selected || !layout)
       return { selected: null, nodes: new Set(), edges: new Set(), ...marked };
@@ -365,7 +382,7 @@ function Canvas({
       }
     }
     return { selected, nodes, edges, ...(reach ? { distance: reach.distance } : {}), ...marked };
-  }, [selected, layout, reach, marks, matches]);
+  }, [selected, layout, reach, marks, matches, badges]);
   framed.current = chrome && reach ? [...lit.nodes] : [];
 
   // A new question from the panel (the mode, the depth) moves the map to its answer. A new

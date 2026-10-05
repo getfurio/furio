@@ -36,6 +36,13 @@ export interface FurioExtensions {
     model: Model;
   }): PanelSection[] | undefined | Promise<PanelSection[] | undefined>;
   /**
+   * A badge on the cards of some components, by component key: a word or two and a tone, e.g. an
+   * incident reported by the provider a component uses.
+   */
+  badges?(context: {
+    model: Model;
+  }): Record<string, CardBadge> | undefined | Promise<Record<string, CardBadge> | undefined>;
+  /**
    * The host offers the other arrangements of the map (tiers, around a component, other groups
    * and directions): the Arrange control appears, and links that carry an arrangement open on it.
    */
@@ -53,6 +60,14 @@ export interface CatalogExtra {
       { value: string; tone?: 'ok' | 'warning' | 'error'; href?: string; sort?: number }
     >
   >;
+}
+
+export interface CardBadge {
+  /** On the card, e.g. "Incident". Cut at 20 characters. */
+  label: string;
+  tone?: 'ok' | 'warning' | 'error';
+  /** On hover, e.g. what the provider reports. Cut at 200 characters. */
+  detail?: string;
 }
 
 export interface NavLink {
@@ -164,6 +179,33 @@ export async function extensionHealth(model: Model): Promise<PanelSection[]> {
     return Array.isArray(sections) ? sections.filter((s) => s && typeof s.title === 'string') : [];
   } catch {
     return [];
+  }
+}
+
+const TONES = new Set(['ok', 'warning', 'error']);
+const cut = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+
+/** Badges for the cards, plain text only; nothing when there is no extension or it fails. */
+export async function extensionBadges(model: Model): Promise<Record<string, CardBadge>> {
+  try {
+    const badges = await extensions().badges?.({ model });
+    const out: Record<string, CardBadge> = {};
+    if (!badges || typeof badges !== 'object') return out;
+    for (const [key, badge] of Object.entries(badges)) {
+      const label = typeof badge?.label === 'string' ? badge.label.trim() : '';
+      if (!label || key === '__proto__') continue;
+      out[key] = {
+        label: cut(label, 20),
+        ...(TONES.has(badge.tone as string) ? { tone: badge.tone } : {}),
+        ...(typeof badge.detail === 'string' && badge.detail.trim()
+          ? { detail: cut(badge.detail.trim(), 200) }
+          : {}),
+      };
+    }
+    return out;
+  } catch {
+    return {};
   }
 }
 

@@ -150,6 +150,12 @@ window.furioExtensions = {
   health({ model }) {
     return [];
   },
+
+  // A badge on some cards, by component key: a short label (cut at 20 characters), a tone, and a
+  // detail shown on hover (cut at 200).
+  badges: ({ model }) => ({
+    'shop/shop-api': { label: 'On call', tone: 'warning', detail: 'Paged at 09:12 UTC' },
+  }),
 };
 ```
 
