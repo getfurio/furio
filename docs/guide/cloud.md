@@ -140,8 +140,26 @@ and, on the paid plans, other ways to lay it out:
   (RDAP), the certificate served on port 443, and that DNS resolves. The results show in the
   panel, on the health page and on the workspace page, and members get an email 30, 14, 7 and 1
   days before an expiry, or as soon as a certificate is not valid;
+- on Individual and Business, **provider incidents**: when the `provider` of a component (or its
+  `runtime`, for hosting platforms such as `vercel` or `cloudflare`) has a public status page
+  that Furio reads, an incident the provider reports there shows on the map, as a badge on the
+  cards of the components that use it, a section in their panel and an entry on the health page,
+  and on the workspace page. Furio reads each page every 5 minutes. Members get an email when an
+  incident starts, with a link to what depends on each component, and another when it closes; on
+  the workspace page you choose which incidents (major and critical, the default; minor too; or
+  none). All of it is what the provider reports: status pages can be late or incomplete, and
+  Furio cannot confirm them;
 - on Individual and Business, **Arrange**: the map by tiers, around one component, or grouped by
   owner, host or type. [Arranging the map](#arranging-the-map) describes each.
+
+The status pages Furio reads, by the `provider` to write in the manifest: `bitbucket`, `brevo`,
+`circleci`, `claude` (or `anthropic`), `clerk`, `clickhouse`, `cloudflare`, `cloudinary`,
+`confluent`, `contentful`, `cursor`, `digitalocean`, `discord`, `docker`, `dropbox`, `elastic`,
+`fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`, `mapbox`,
+`mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`, `render`,
+`resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or `sendgrid`),
+`upstash`, `vercel`, `zoom`. A dotted provider counts by its first part: `github.actions` is
+GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by service and region.
 
 ## Arranging the map
 
