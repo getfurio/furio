@@ -37,10 +37,18 @@ drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Car
   without an owner, and every issue Furio found.
 - **Catalog** (`#/catalog`): every component in a table, a tab per type the workspace has
   (Services, Databases, Domains...), a search over every field, sortable columns and a CSV
-  download. A click on a name opens a quick look; the URL keeps the tab and the search.
-- **Diagrams** (`#/diagrams`): every diagram of the workspace, grouped by project, each with the
-  components it describes. Add them as `.mmd` or `.md` files in `.architecture/diagrams/` and list
-  them under `diagrams:` in the manifest ([how](manifest.md#diagrams)).
+  download of the rows on screen. A menu per field (project, owner, tech, host, provider, status,
+  tag) filters on its values, each with how many rows have it: values of one menu add up,
+  different menus narrow down, as in the map's filter. A click on a name opens a quick look; the
+  URL keeps the tab, the search and the filters, as in
+  `#/catalog?type=service&owner=team-shop,team-web&tag=critical`.
+- **Diagrams** (`#/diagrams`): every diagram of the workspace as a card with its title, its kind
+  (flowchart, sequence, state...), its project and repo, and the components it describes. A search
+  finds a diagram by any of them, and a menu keeps some projects only. A card opens the diagram on
+  a page of its own, with links to the components it describes; `j` / `k` move to the next and
+  previous of the diagrams found, and **Diagrams** leads back to them. Add diagrams as `.mmd` or
+  `.md` files in `.architecture/diagrams/` and list them under `diagrams:` in the manifest
+  ([how](manifest.md#diagrams)).
 
 ## One project
 
@@ -125,7 +133,7 @@ the mode or the depth in the panel.
 | `/`     | Search: Enter selects the part on the map, ⌘/Ctrl+Enter opens its page |
 | `Enter` | Open the page of the selected card                                     |
 | `Esc`   | Close the panel and clear the selection                                |
-| `j` `k` | Next / previous component (component page)                             |
+| `j` `k` | Next / previous component (component page) or diagram (its page)       |
 
 ## Export
 

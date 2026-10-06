@@ -1820,6 +1820,210 @@ a:hover {
   height: 26px;
 }
 
+/* ------------------------------------------------------------------ filter menus */
+
+.facets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.facet {
+  position: relative;
+}
+
+.facet-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 240px;
+  padding: 0 8px 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--highlight);
+  transition:
+    background var(--step) var(--ease),
+    color var(--step) var(--ease);
+}
+
+.facet-button:hover,
+.facet-button[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.facet-button:focus-visible {
+  outline: none;
+  box-shadow: var(--accent-ring);
+}
+
+.facet-button svg {
+  flex: none;
+  color: var(--text-3);
+}
+
+/* A menu with values ticked reads like a chip of the map's filter: the field, then what it holds. */
+.facet-button.is-set {
+  border-color: transparent;
+  background: var(--accent-soft);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.facet-button.is-set .facet-name {
+  font-weight: 400;
+  color: var(--text-2);
+}
+
+.facet-button.is-set svg {
+  color: var(--text-2);
+}
+
+.facet-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.facet-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 260px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop), var(--highlight);
+}
+
+.facet-menu.is-end {
+  left: auto;
+  right: 0;
+}
+
+.facet-find {
+  width: 100%;
+  height: 30px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.facet-find:focus {
+  border-color: var(--accent);
+}
+
+.facet-find::placeholder {
+  color: var(--text-3);
+}
+
+.facet-menu ul {
+  max-height: min(50vh, 308px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.facet-menu li[role='option'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.facet-menu li.is-active {
+  background: var(--surface-3);
+}
+
+.facet-tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border-2);
+  color: var(--on-accent);
+}
+
+.facet-menu li[aria-selected='true'] .facet-tick {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.facet-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facet-menu .count {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.facet-none {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.facet-clear {
+  display: block;
+  width: calc(100% + 12px);
+  margin: 6px -6px -6px;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.facet-clear:hover {
+  color: var(--text);
+}
+
+.facet-clear:focus-visible {
+  outline-offset: -2px;
+}
+
+.facets-clear {
+  margin-left: 6px;
+  font-size: 13px;
+}
+
 /* ------------------------------------------------------------------ document pages */
 
 .sheet {
@@ -2203,6 +2407,14 @@ a:hover {
   opacity: 0.7;
 }
 
+/* A diagram as wide as its frame leaves the corner to the Enlarge button; a phone has no room
+   to give, and the button stays over it. */
+@media (min-width: 861px) {
+  .diagram-body .mermaid-out {
+    padding: 0 38px;
+  }
+}
+
 .mermaid-wrap:hover .enlarge,
 .mermaid-wrap .enlarge:focus-visible {
   opacity: 1;
@@ -2473,9 +2685,25 @@ a:hover {
   font-weight: 400;
 }
 
-.cat-search {
+/* A type the search and the filters leave empty keeps its place, quieter. */
+.cat-tabs a.is-empty:not([aria-current='page']) {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.cat-tools,
+.dg-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   margin: 14px 0 12px;
-  max-width: 560px;
+}
+
+.cat-search,
+.dg-search {
+  flex: 1 1 320px;
+  max-width: 420px;
 }
 
 .cat-found {
@@ -2561,51 +2789,161 @@ a:hover {
 
 /* ------------------------------------------------------------------ diagrams page */
 
-.diagram-index {
+.dg-tools {
+  margin: 20px 0 16px;
+}
+
+.dg-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px 24px;
-  margin-top: 24px;
-  padding: 16px 18px;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A card is one link: its title, stretched over the whole card. */
+.dg-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto;
+  column-gap: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
+  box-shadow: var(--highlight);
+  transition:
+    border-color var(--step) var(--ease),
+    background var(--step) var(--ease);
 }
 
-.diagram-index h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
-  font-size: 13px;
-  font-weight: 600;
+.dg-card:hover {
+  border-color: var(--border-2);
+  background: var(--surface-2);
 }
 
-.diagram-index h2 a {
-  color: var(--text);
-}
-
-.diagram-index h2 .count {
-  font-weight: 400;
-  color: var(--text-3);
-}
-
-.diagram-index ul {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 16px;
+.dg-tile {
+  grid-row: 1 / span 2;
   display: grid;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.diagram-index a {
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
   color: var(--text-2);
 }
 
-.diagram-index a:hover,
-.diagram-index a[aria-current='true'] {
-  color: var(--accent-2);
+.dg-card h2 {
+  grid-column: 2;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dg-card h2 a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+}
+
+.dg-card h2 a:focus-visible {
+  outline: none;
+}
+
+.dg-card h2 a:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dg-kind {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.dg-parts {
+  grid-column: 1 / -1;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 14px;
+}
+
+.dg-parts .tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 1px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dg-more {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.dg-where {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.dg-where .mono {
+  min-width: 0;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* What a diagram is and where it lives, under its title on its own page. */
+.dg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.dg-meta > * + *::before {
+  content: '·';
+  margin-right: 10px;
+  color: var(--text-3);
+}
+
+.dg-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The gap of the link adds to the margin of its separator. */
+.dg-meta a::before {
+  margin-right: 4px;
+}
+
+.dg-meta .mono {
+  overflow-wrap: anywhere;
 }
 
 .diagram-parts {
@@ -3168,6 +3506,31 @@ a:hover {
   .title-band .tb-nav {
     grid-column: 1 / -1;
     grid-row: auto;
+  }
+
+  /* A line as long as a file's path takes the whole width, not the column of the tile. */
+  .title-band .dg-meta {
+    grid-column: 1 / -1;
+    column-gap: 14px;
+  }
+
+  /* Wrapped over several lines, a separator would open some of them. */
+  .title-band .dg-meta > *::before {
+    content: none;
+  }
+
+  /* Easier to hit with a finger; a field at 16px keeps a phone from zooming in on it. */
+  .facet-button {
+    height: 36px;
+  }
+
+  .facet-menu li[role='option'] {
+    padding: 9px 8px;
+  }
+
+  .facet-find {
+    height: 36px;
+    font-size: 16px;
   }
 }
 

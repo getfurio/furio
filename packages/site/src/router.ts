@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 /**
  * Hash routes, so the static site works on any host and sub-path without server rewrites:
- * #/ workspace · #/c/<project>/<component> · #/health · #/catalog[?type=…&q=…] · #/diagrams[?d=<key>]
+ * #/ workspace · #/c/<project>/<component> · #/health · #/catalog[?type=…&q=…&owner=…&tag=…]
+ * · #/diagrams[?q=…&project=…] · #/diagrams?d=<key> (one diagram)
  *
  * A project is a scope: #/p/<project> is its map (the project and the parts of other projects it
  * touches), and the pages under it show that project only, e.g. #/p/<project>/catalog or
@@ -53,8 +54,8 @@ export type Route =
   | { name: 'project'; project: string; view: ViewState }
   | { name: 'component'; key: string; scope?: string }
   | { name: 'health'; scope?: string }
-  | { name: 'diagrams'; diagram?: string; scope?: string }
-  | { name: 'catalog'; type?: string; q?: string; scope?: string };
+  | { name: 'diagrams'; diagram?: string; q?: string; projects?: string[]; scope?: string }
+  | { name: 'catalog'; type?: string; q?: string; filter?: CatalogFilter; scope?: string };
 
 export const FILTERS = ['type', 'tech', 'owner', 'host', 'provider', 'status'] as const;
 export type FilterKey = (typeof FILTERS)[number];
@@ -63,6 +64,44 @@ export type Filter = Partial<Record<FilterKey, string[]>>;
 export function hasFilter(filter: Filter): boolean {
   return FILTERS.some((key) => filter[key]?.length);
 }
+
+/** What the catalog's menus filter on, besides the type of its tabs and the search. */
+export const CATALOG_FILTERS = [
+  'project',
+  'owner',
+  'tech',
+  'host',
+  'provider',
+  'status',
+  'tag',
+] as const;
+export type CatalogFilterKey = (typeof CATALOG_FILTERS)[number];
+export type CatalogFilter = Partial<Record<CatalogFilterKey, string[]>>;
+
+/** What narrows the grid of diagrams: a search and, across the workspace, some of its projects. */
+export interface DiagramFind {
+  q?: string | undefined;
+  projects?: string[] | undefined;
+}
+
+/**
+ * Several values in one parameter, comma-separated as in `owner=a,b`. A comma inside a value is
+ * written %2C, so a team called "Payments, Billing" stays one value.
+ */
+const joinList = (values: string[]) =>
+  values.map((value) => value.replace(/%/g, '%25').replace(/,/g, '%2C')).join(',');
+
+const splitList = (text: string | null) =>
+  (text ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map((value) => value.replace(/%(2C|25)/gi, (_, code: string) => (code === '25' ? '%' : ',')));
+
+/** A query as it reads in a link: the slashes of a key and the commas of a list left as they are. */
+const queryOf = (params: URLSearchParams) => {
+  const query = params.toString().replace(/%2F/g, '/').replace(/%2C/g, ',');
+  return query ? `?${query}` : '';
+};
 
 export function parseView(query: string): ViewState {
   const params = new URLSearchParams(query);
@@ -78,7 +117,7 @@ export function parseView(query: string): ViewState {
   const since = params.get('since');
   if (since && /^[\w-]{1,20}$/.test(since)) view.since = since;
   for (const key of FILTERS) {
-    const values = (params.get(key) ?? '').split(',').filter(Boolean);
+    const values = splitList(params.get(key));
     if (values.length) view.filter[key] = values;
   }
   if (params.get('only') === '1' && hasFilter(view.filter)) view.only = true;
@@ -110,15 +149,14 @@ export function serializeView(view: ViewState): string {
   if (view.sel && view.mode !== 'nets') params.set('mode', view.mode);
   if (view.sel && view.mode !== 'nets' && view.depth) params.set('depth', String(view.depth));
   for (const key of FILTERS)
-    if (view.filter[key]?.length) params.set(key, view.filter[key]!.join(','));
+    if (view.filter[key]?.length) params.set(key, joinList(view.filter[key]!));
   if (view.only && hasFilter(view.filter)) params.set('only', '1');
   if (view.since) params.set('since', view.since);
   if (view.arrange) params.set('arrange', view.arrange);
   if (view.dir && view.arrange !== 'around') params.set('dir', view.dir);
   if (view.group && !view.arrange) params.set('group', view.group);
   if (view.around && view.arrange === 'around') params.set('around', view.around);
-  const query = params.toString().replace(/%2F/g, '/').replace(/%2C/g, ',');
-  return query ? `?${query}` : '';
+  return queryOf(params);
 }
 
 export function parseHash(hash: string): Route {
@@ -143,11 +181,32 @@ function pageRoute(parts: string[], query: string, scope?: string): Route {
     const params = new URLSearchParams(query);
     const type = params.get('type');
     const q = params.get('q');
-    return { name: 'catalog', ...(type ? { type } : {}), ...(q ? { q } : {}), ...scoped };
+    const filter: CatalogFilter = {};
+    for (const key of CATALOG_FILTERS) {
+      // In a scope every row is the project's: a project in the link filters nothing there.
+      const values = key === 'project' && scope ? [] : splitList(params.get(key));
+      if (values.length) filter[key] = values;
+    }
+    return {
+      name: 'catalog',
+      ...(type ? { type } : {}),
+      ...(q ? { q } : {}),
+      ...(Object.keys(filter).length ? { filter } : {}),
+      ...scoped,
+    };
   }
   if (parts[0] === 'diagrams') {
-    const diagram = new URLSearchParams(query).get('d');
-    return { name: 'diagrams', ...(diagram ? { diagram } : {}), ...scoped };
+    const params = new URLSearchParams(query);
+    const diagram = params.get('d');
+    const q = params.get('q');
+    const projects = scope ? [] : splitList(params.get('project'));
+    return {
+      name: 'diagrams',
+      ...(diagram ? { diagram } : {}),
+      ...(q ? { q } : {}),
+      ...(projects.length ? { projects } : {}),
+      ...scoped,
+    };
   }
   return { name: 'workspace', view: parseView(query) };
 }
@@ -208,16 +267,28 @@ export function linksIn(scope?: string) {
     map: (view?: Partial<ViewState>) => `${scope ? base : '#/'}${withView(view)}`,
     component: (key: string) => `${base}/c/${key.split('/').map(encodeURIComponent).join('/')}`,
     health: () => `${base}/health`,
-    /** The table of every component, optionally one type and a search. */
-    catalog: (type?: string, q?: string) => {
+    /** The table of every component, optionally one type, a search and the values of its menus. */
+    catalog: (type?: string, q?: string, filter: CatalogFilter = {}) => {
       const params = new URLSearchParams();
       if (type) params.set('type', type);
       if (q) params.set('q', q);
-      const query = params.toString();
-      return `${base}/catalog${query ? `?${query}` : ''}`;
+      for (const key of CATALOG_FILTERS) {
+        const values = key === 'project' && scope ? [] : (filter[key] ?? []);
+        if (values.length) params.set(key, joinList(values));
+      }
+      return `${base}/catalog${queryOf(params)}`;
     },
-    /** The diagrams page, scrolled to one diagram when a key is given. */
-    diagrams: (key?: string) => `${base}/diagrams${key ? `?d=${encodeURIComponent(key)}` : ''}`,
+    /**
+     * The grid of diagrams, or one diagram on its own page when a key is given. What narrowed the
+     * grid goes along, so the page of a diagram moves among the ones found and leads back to them.
+     */
+    diagrams: (key?: string, find: DiagramFind = {}) => {
+      const params = new URLSearchParams();
+      if (key) params.set('d', key);
+      if (find.q) params.set('q', find.q);
+      if (find.projects?.length && !scope) params.set('project', joinList(find.projects));
+      return `${base}/diagrams${queryOf(params)}`;
+    },
   };
 }
 
@@ -231,14 +302,15 @@ export const href = {
   map: (view?: Partial<ViewState>) => linksIn(currentScope()).map(view),
   component: (key: string) => linksIn(currentScope()).component(key),
   health: () => linksIn(currentScope()).health(),
-  catalog: (type?: string, q?: string) => linksIn(currentScope()).catalog(type, q),
-  diagrams: (key?: string) => linksIn(currentScope()).diagrams(key),
+  catalog: (type?: string, q?: string, filter?: CatalogFilter) =>
+    linksIn(currentScope()).catalog(type, q, filter),
+  diagrams: (key?: string, find?: DiagramFind) => linksIn(currentScope()).diagrams(key, find),
 };
 
 /**
  * The page on screen in another scope. Without one (the whole workspace) it keeps everything it
- * shows; in another project, the same page with what still applies there (the catalog's tab and
- * search). A component page becomes the project's map.
+ * shows; in another project, the same page with what still applies there (the catalog's tab,
+ * search and menus; the search of the diagrams). A component page becomes the project's map.
  */
 export function pageIn(route: Route, scope?: string): string {
   const to = linksIn(scope);
@@ -251,9 +323,12 @@ export function pageIn(route: Route, scope?: string): string {
     case 'health':
       return to.health();
     case 'catalog':
-      return to.catalog(route.type, route.q);
+      return to.catalog(route.type, route.q, route.filter);
     case 'diagrams':
-      return to.diagrams(scope ? undefined : route.diagram);
+      return to.diagrams(scope ? undefined : route.diagram, {
+        q: route.q,
+        projects: route.projects,
+      });
   }
 }
 

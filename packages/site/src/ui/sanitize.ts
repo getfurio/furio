@@ -19,6 +19,37 @@ const ATTRIBUTES = [...PLAIN_ATTRIBUTES, 'alt', 'href', 'src', 'title'];
 const LINKS = /^(?:https?:\/\/|mailto:|#)/i;
 const INLINE_IMAGE = /^data:image\/(?:png|jpe?g|gif|webp|avif|svg\+xml)[;,]/i;
 
+/**
+ * What makes a style fetch: a url() that is not a reference inside the diagram itself (`#id`),
+ * the image functions that take an address as a string, and @import.
+ */
+const FETCHES = /\b(url)\((?!\s*['"]?\s*#)|\b(image-set|image|src)\(|(@import)(?![\w-])/gi;
+
+/** A CSS escape, as in `u\72l(`: up to six hex digits and a space, or any one character. */
+const ESCAPE = /\\(?:([0-9a-f]{1,6})\s?|([^]))/gi;
+
+const unescaped = (css: string) =>
+  css.replace(ESCAPE, (_, hex?: string, char?: string) =>
+    hex ? String.fromCodePoint(Math.min(parseInt(hex, 16), 0x10ffff)) : (char ?? ''),
+  );
+
+/**
+ * The CSS of a diagram (a style sheet, a `style` attribute, a presentation attribute such as
+ * `fill`) with nothing that loads from another host: classDef and style statements take any
+ * property, and a mask, a cursor or a paint may be an address. What would fetch is renamed into
+ * something the browser does not know and skips; CSS that hides it behind escapes is dropped whole.
+ */
+export function localCss(css: string): string {
+  const off = (text: string) =>
+    text.replace(FETCHES, (found: string, url?: string, image?: string, rule?: string) => {
+      const name = rule ?? url ?? image ?? '';
+      return `${name}-off${found.slice(name.length)}`;
+    });
+  const local = off(css);
+  const plain = unescaped(local);
+  return off(plain) === plain ? local : '';
+}
+
 type Purifier = ReturnType<typeof DOMPurify>;
 
 let purifier: Purifier | undefined;
@@ -26,16 +57,27 @@ let svgPurifier: Purifier | undefined;
 
 /**
  * The SVG Mermaid rendered, as SVG only and with nothing that loads from another host: an
- * image node may carry its picture inline, not point at a server.
+ * image node may carry its picture inline, not point at a server, and no style may either.
  */
 export function sanitizeDiagram(svg: string): string {
   if (!svgPurifier) {
     svgPurifier = DOMPurify(window);
     svgPurifier.addHook('uponSanitizeElement', (node, data) => {
-      if (node.nodeType !== 1 || (data.tagName !== 'image' && data.tagName !== 'feimage')) return;
+      if (node.nodeType !== 1) return;
       const element = node as Element;
+      if (data.tagName === 'style') element.textContent = localCss(element.textContent ?? '');
+      if (data.tagName !== 'image' && data.tagName !== 'feimage') return;
       const href = element.getAttribute('href') ?? element.getAttribute('xlink:href') ?? '';
       if (!INLINE_IMAGE.test(href)) element.remove();
+    });
+    svgPurifier.addHook('afterSanitizeAttributes', (node) => {
+      for (const { name, value } of [...node.attributes]) {
+        // Only a function, an escape or an at-rule can make a value fetch.
+        if (!/[(\\@]/.test(value)) continue;
+        const local = localCss(value);
+        if (!local) node.removeAttribute(name);
+        else if (local !== value) node.setAttribute(name, local);
+      }
     });
   }
   return svgPurifier.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
