@@ -594,8 +594,14 @@ a:hover {
   background: var(--surface);
 }
 
+/* The mark is Furio's own indigo in every palette: it is the brand, not part of the interface. */
 .mark {
   flex: none;
+  color: #7170ff;
+}
+
+:root[data-theme='light'] .mark {
+  color: #5e5ce6;
 }
 
 .ws-text {
