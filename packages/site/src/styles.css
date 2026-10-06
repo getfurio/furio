@@ -583,10 +583,12 @@ a:hover {
 }
 
 /* The projects are what scrolls, not the sidebar: the search results open over the main column
-   instead of being cut at the sidebar's edge. */
+   instead of being cut at the sidebar's edge. The list reaches down to the foot of the sidebar,
+   so its rows are packed at the top rather than spread over the free space. */
 .projects {
   flex: 1 1 auto;
   min-height: 0;
+  align-content: start;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
