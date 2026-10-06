@@ -93,7 +93,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: getfurio/furio@91724611877dee1a0c8cd505c66a5c3db39a020e # v0.6.1
+      - uses: getfurio/furio@58afc11a9715b9579044318cf8c297f97e7251f0 # v0.6.2
 ```
 
 Put your **default branch** in the `push` trigger: `main` in the example, but use `dev`,
@@ -137,7 +137,7 @@ cannot tell a typo from a component that exists elsewhere. Give the check the `m
 published map and it can:
 
 ```yaml
-- uses: getfurio/furio@91724611877dee1a0c8cd505c66a5c3db39a020e # v0.6.1
+- uses: getfurio/furio@58afc11a9715b9579044318cf8c297f97e7251f0 # v0.6.2
   with:
     model: https://<your-org>.github.io/catalog/model.json
 ```
@@ -213,7 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: getfurio/furio@91724611877dee1a0c8cd505c66a5c3db39a020e # v0.6.1
+      - uses: getfurio/furio@58afc11a9715b9579044318cf8c297f97e7251f0 # v0.6.2
         with:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
@@ -397,7 +397,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: getfurio/furio@91724611877dee1a0c8cd505c66a5c3db39a020e # v0.6.1
+      - uses: getfurio/furio@58afc11a9715b9579044318cf8c297f97e7251f0 # v0.6.2
         with:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
@@ -458,7 +458,7 @@ its path.
 
 ```yaml
 - run: aws s3 cp "s3://<bucket>/map/model.json" model.json
-- uses: getfurio/furio@91724611877dee1a0c8cd505c66a5c3db39a020e # v0.6.1
+- uses: getfurio/furio@58afc11a9715b9579044318cf8c297f97e7251f0 # v0.6.2
   with:
     model: model.json
 ```
