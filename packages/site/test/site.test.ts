@@ -1,6 +1,8 @@
 import { join } from 'node:path';
 import { buildModel } from '@getfurio/core';
 import { describe, expect, it } from 'vitest';
+import { catalogOptions, matchesCatalog, narrows } from '../src/catalog';
+import { diagramKind, findDiagrams, partLabel } from '../src/diagrams';
 import { codeUrl, facet, impact, indexModel, matchesFilter, revision, search } from '../src/model';
 import {
   changeMarks,
@@ -39,8 +41,10 @@ import {
   parseView,
   routeScope,
   serializeView,
+  type DiagramFind,
 } from '../src/router';
 import { contents, mapWith, marksIn, projectScope } from '../src/scope';
+import { localCss } from '../src/ui/sanitize';
 import { makeRepo, manifest } from '../../core/test/helpers';
 
 const EXAMPLES = join(import.meta.dirname, '../../../examples/demo');
@@ -233,10 +237,39 @@ describe('router', () => {
     });
   });
 
-  it('routes the diagrams page, scrolled to one diagram', () => {
+  it('routes the catalog with the values of its menus, several to a menu', () => {
+    const filter = { owner: ['team-shop', 'Payments, Billing'], tag: ['critical'] };
+    const link = href.catalog('service', 'api', filter);
+    expect(link).toBe(
+      '#/catalog?type=service&q=api&owner=team-shop,Payments%252C+Billing&tag=critical',
+    );
+    expect(parseHash(link)).toEqual({ name: 'catalog', type: 'service', q: 'api', filter });
+    expect(parseHash('#/catalog?host=&status=deprecated')).toEqual({
+      name: 'catalog',
+      filter: { status: ['deprecated'] },
+    });
+    // The map's own filter reads a comma inside a value the same way.
+    const owners = { owner: ['Payments, Billing', 'team-shop'] };
+    const view = serializeView({ mode: 'nets', depth: 0, filter: owners });
+    expect(parseView(view.slice(1)).filter).toEqual(owners);
+  });
+
+  it('routes the grid of diagrams and the page of one, with what narrowed the grid', () => {
     expect(parseHash('#/diagrams')).toEqual({ name: 'diagrams' });
     const key = 'acme/shop-api:diagrams/checkout-flow.mmd';
     expect(parseHash(href.diagrams(key))).toEqual({ name: 'diagrams', diagram: key });
+    // A link made when the page listed every diagram opens the one it pointed at.
+    expect(parseHash(`#/diagrams?d=${encodeURIComponent(key)}`)).toEqual({
+      name: 'diagrams',
+      diagram: key,
+    });
+    const find = { q: 'refund flow', projects: ['shop', 'platform'] };
+    expect(href.diagrams(undefined, find)).toBe('#/diagrams?q=refund+flow&project=shop,platform');
+    expect(parseHash(href.diagrams(key, find))).toEqual({
+      name: 'diagrams',
+      diagram: key,
+      ...find,
+    });
   });
 
   it('ignores bad modes and depths', () => {
@@ -429,6 +462,22 @@ diagrams:
       expect(routeScope(parseHash(link))).toBe('shop');
     expect(to.map({ sel: 'shop/api', mode: 'impact' })).toBe('#/p/shop?sel=shop/api&mode=impact');
     expect(to.catalog('service')).toBe('#/p/shop/catalog?type=service');
+    // Every row of a scope is the project's: a project in the link filters nothing there.
+    expect(to.catalog('service', undefined, { project: ['billing'], owner: ['team-shop'] })).toBe(
+      '#/p/shop/catalog?type=service&owner=team-shop',
+    );
+    expect(parseHash('#/p/shop/catalog?project=billing&tag=pci')).toEqual({
+      name: 'catalog',
+      filter: { tag: ['pci'] },
+      scope: 'shop',
+    });
+    expect(to.diagrams(undefined, { q: 'run', projects: ['billing'] })).toBe(
+      '#/p/shop/diagrams?q=run',
+    );
+    expect(parseHash('#/p/shop/diagrams?project=billing')).toEqual({
+      name: 'diagrams',
+      scope: 'shop',
+    });
   });
 
   it('opens the links made before it as they were, without a scope', () => {
@@ -475,6 +524,14 @@ diagrams:
     expect(pageIn(parseHash('#/p/shop/c/shop/api'))).toBe('#/c/shop/api');
     expect(pageIn(parseHash('#/p/shop/c/shop/api'), 'billing')).toBe('#/p/billing');
     expect(pageIn(parseHash('#/p/shop/diagrams?d=x'))).toBe('#/diagrams?d=x');
+    // The menus of the catalog and the search of the diagrams go along; the projects picked
+    // across the workspace do not enter a scope.
+    const filtered = parseHash('#/catalog?project=shop,billing&owner=team-shop');
+    expect(pageIn(filtered, 'billing')).toBe('#/p/billing/catalog?owner=team-shop');
+    expect(pageIn(parseHash('#/p/shop/catalog?owner=team-shop'))).toBe('#/catalog?owner=team-shop');
+    expect(pageIn(parseHash('#/diagrams?d=x&q=run&project=shop'), 'billing')).toBe(
+      '#/p/billing/diagrams?q=run',
+    );
     expect(pageIn(parseHash('#/health'), 'shop')).toBe('#/p/shop/health');
   });
 
@@ -912,6 +969,140 @@ describe('markdown diagrams', () => {
     expect(splitMarkdown('```mermaid\nA-->B\n'.repeat(60_000))).toHaveLength(1);
     // Quadratic, it took half a minute and froze the page; linear, a few milliseconds.
     expect(performance.now() - start).toBeLessThan(3000);
+  });
+});
+
+describe('diagram styles', () => {
+  it('keeps what refers to the diagram itself and turns off what would fetch', () => {
+    const own =
+      '#m1 .node rect{fill:#fff;stroke:#333}#m1 .flowchart-link{marker-end:url(#m1_arrow)}';
+    expect(localCss(own)).toBe(own);
+    expect(localCss('fill: url( "#grad" )')).toBe('fill: url( "#grad" )');
+    expect(
+      localCss('mask-image:url(https://example.com/x.png);cursor:URL("//example.com/c.png"),auto'),
+    ).toBe(
+      'mask-image:url-off(https://example.com/x.png);cursor:URL-off("//example.com/c.png"),auto',
+    );
+    expect(localCss('url(https://example.com/paint.svg#g)')).toBe(
+      'url-off(https://example.com/paint.svg#g)',
+    );
+    expect(localCss("background:image-set('https://example.com/a.png' 1x)")).toBe(
+      "background:image-set-off('https://example.com/a.png' 1x)",
+    );
+    expect(localCss('mask:-webkit-image-set(url(x.png) 1x)')).toBe(
+      'mask:-webkit-image-set-off(url-off(x.png) 1x)',
+    );
+    expect(localCss('@import "https://example.com/a.css";')).toBe(
+      '@import-off "https://example.com/a.css";',
+    );
+  });
+
+  it('drops a style that hides an address behind escapes', () => {
+    expect(localCss('mask-image:u\\72l(https://example.com/x.png)')).toBe('');
+    expect(localCss('mask-image:\\75 rl(https://example.com/x.png)')).toBe('');
+    expect(localCss('@\\69mport "https://example.com/a.css"')).toBe('');
+    // An escape that hides nothing is left as it is.
+    expect(localCss('.a\\:b{fill:#fff}')).toBe('.a\\:b{fill:#fff}');
+  });
+});
+
+describe('catalog filters', () => {
+  const rows = contents(site).components;
+  const keys = (list: { key: string }[]) => list.map((c) => c.key).sort();
+  const kept = (filter: Parameters<typeof matchesCatalog>[1]) =>
+    keys(rows.filter((c) => matchesCatalog(c, filter)));
+
+  it('keeps the rows with any value of a menu, in every menu', () => {
+    expect(kept({ owner: ['team-shop-web', 'team-payments'] })).toEqual([
+      'platform/stripe',
+      'shop/storefront',
+    ]);
+    expect(kept({ project: ['shop'], tag: ['critical', 'legacy'] })).toEqual(['shop/shop-api']);
+    expect(kept({ project: ['platform'], tag: ['critical'] })).toEqual([]);
+    // Tech reads as its column does: the runtime where no technology is declared.
+    expect(kept({ tech: ['aws.ecs'] })).toEqual(['platform/users-api', 'shop/shop-api']);
+    expect(kept({ status: ['active'] })).toHaveLength(9);
+    expect(kept({})).toHaveLength(9);
+  });
+
+  it('counts the values of a menu on the rows the other menus keep', () => {
+    const filter = { project: ['platform'], owner: ['team-payments'] };
+    const others = rows.filter((c) => matchesCatalog(c, filter, 'owner'));
+    expect(catalogOptions(others, 'owner', filter.owner)).toEqual([
+      { value: 'team-platform', label: 'team-platform', count: 3 },
+      { value: 'team-payments', label: 'team-payments', count: 1 },
+    ]);
+    // A ticked value that no row has stays in the list, to be unticked.
+    expect(catalogOptions(others, 'owner', ['nobody']).at(-1)).toEqual({
+      value: 'nobody',
+      label: 'nobody',
+      count: 0,
+    });
+    expect(catalogOptions(rows, 'status')).toEqual([
+      { value: 'active', label: 'Active', count: 9 },
+    ]);
+  });
+
+  it('offers a menu only where it can narrow the rows', () => {
+    expect(narrows(rows, 'owner')).toBe(true);
+    expect(narrows(rows, 'project')).toBe(true);
+    // Every component is active, and one project is all there is in its own rows.
+    expect(narrows(rows, 'status')).toBe(false);
+    const shop = rows.filter((c) => c.project === 'shop');
+    expect(narrows(shop, 'project')).toBe(false);
+    expect(catalogOptions(shop, 'host')).toEqual([]);
+    expect(narrows(shop, 'host')).toBe(false);
+    // One value is enough when some rows do not have it.
+    const platform = rows.filter((c) => c.project === 'platform');
+    expect(catalogOptions(platform, 'tech')).toEqual([
+      { value: 'aws.ecs', label: 'aws.ecs', count: 1 },
+    ]);
+    expect(narrows(platform, 'tech')).toBe(true);
+  });
+});
+
+describe('diagrams', () => {
+  const [checkout, refund] = ['Checkout flow', 'Refund sequence'].map((title) =>
+    site.model.diagrams.find((d) => d.title === title)!,
+  ) as [(typeof site.model.diagrams)[number], (typeof site.model.diagrams)[number]];
+  const titles = (find?: DiagramFind) =>
+    findDiagrams(site, site.model.diagrams, find).map((d) => d.title);
+
+  it('names the kind of a diagram from its source', () => {
+    expect(diagramKind(checkout)).toEqual({ id: 'flowchart', label: 'Flowchart' });
+    expect(diagramKind(refund)).toEqual({ id: 'document', label: 'Document' });
+    const kind = (content: string, format: 'mermaid' | 'markdown' = 'mermaid') =>
+      diagramKind({ ...checkout, format, content }).label;
+    // Frontmatter, comments and directives come before the word that says what it is.
+    expect(kind('---\ntitle: States\n---\n%% a comment\n\nstateDiagram-v2\n  [*] --> A\n')).toBe(
+      'State',
+    );
+    expect(kind('%%{init: {"theme": "dark"}}%%\nerDiagram\n')).toBe('Entities');
+    expect(kind('C4Context\n')).toBe('C4');
+    expect(kind('somethingNew\n')).toBe('Diagram');
+    expect(kind('')).toBe('Diagram');
+    expect(kind('Intro\n```mermaid\ngraph LR\n```\n```mermaid\ngantt\n```\n', 'markdown')).toBe(
+      'Document, 2 diagrams',
+    );
+  });
+
+  it('lists them by project and title, and finds them by what they say and describe', () => {
+    expect(titles()).toEqual(['Login', 'Checkout flow', 'Refund sequence']);
+    expect(titles({ projects: ['shop'] })).toEqual(['Checkout flow', 'Refund sequence']);
+    // By a component it describes (its key or its name), by its kind, by its title.
+    expect(titles({ q: 'stripe' })).toEqual(['Checkout flow']);
+    expect(titles({ q: 'users api' })).toEqual(['Login']);
+    expect(titles({ q: 'Sequence' })).toEqual(['Login', 'Refund sequence']);
+    expect(titles({ q: 'checkout nothing' })).toEqual([]);
+    expect(titles({ q: 'shop', projects: ['platform'] })).toEqual([]);
+  });
+
+  it('names a described part by its id inside the project of the diagram', () => {
+    expect(checkout.components.map((key) => partLabel(checkout, key))).toEqual([
+      'shop-api',
+      'invoice-worker',
+      'platform/stripe',
+    ]);
   });
 });
 

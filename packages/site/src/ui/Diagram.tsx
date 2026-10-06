@@ -168,22 +168,25 @@ function MarkdownDiagram({ content, title }: { content: string; title: string })
 
 export function Diagram({
   diagram,
-  id,
+  head = true,
   children,
 }: {
   diagram: ModelDiagram;
-  id?: string;
+  /** Its title and file above it; not on a page that already carries them. */
+  head?: boolean;
   /** Shown under the diagram, e.g. the components it describes. */
   children?: React.ReactNode;
 }) {
   return (
-    <figure className="diagram" style={{ margin: '0 0 20px' }} id={id}>
-      <div className="diagram-head">
-        <h3>{diagram.title}</h3>
-        <span className="mono">
-          {diagram.repo} · .architecture/{diagram.file}
-        </span>
-      </div>
+    <figure className="diagram" style={{ margin: '0 0 20px' }}>
+      {head && (
+        <div className="diagram-head">
+          <h3>{diagram.title}</h3>
+          <span className="mono">
+            {diagram.repo} · .architecture/{diagram.file}
+          </span>
+        </div>
+      )}
       <div className={`diagram-body ${diagram.format === 'markdown' ? 'prose' : ''}`}>
         {diagram.format === 'markdown' ? (
           <MarkdownDiagram content={diagram.content} title={diagram.title} />
