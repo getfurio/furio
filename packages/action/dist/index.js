@@ -28554,7 +28554,7 @@ var SKILL = "---\nname: furio-architecture\ndescription: Keep this repo's .archi
 // ../cli/package.json
 var package_default = {
   name: "@getfurio/cli",
-  version: "0.5.1",
+  version: "0.6.0",
   description: "Furio likes things tidy: validate and map your architecture, straight from your repos.",
   license: "MIT",
   type: "module",
