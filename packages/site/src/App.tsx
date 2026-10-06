@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { extensionNav, type NavLink } from './extensions';
 import { PALETTE_LABEL, PALETTES, useAppearance } from './theme';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { BoardView } from './graph/BoardView';
 import { indexModel, loadModel, revision, type Site } from './model';
 import {
@@ -299,20 +299,29 @@ function HostNav({ site }: { site: Site }) {
   );
 }
 
+/**
+ * Furio's mark: a disc cut by a relation that turns at a right angle and ends in a component.
+ * The cut is a real hole (a mask), so the mark sits on any surface; its id is unique per mark.
+ */
 function Mark() {
+  const cut = useId();
   return (
-    <svg className="mark" width="28" height="28" viewBox="0 0 28 28" aria-hidden>
-      <rect width="28" height="28" rx="8" fill="#7170ff" />
-      <path
-        d="M9 9.5h4.5M9 18.5h4.5M13.5 9.5v9M13.5 14h5.5"
-        stroke="#fff"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <circle cx="9" cy="9.5" r="2" fill="#fff" />
-      <circle cx="9" cy="18.5" r="2" fill="#fff" />
-      <circle cx="19.5" cy="14" r="2" fill="#fff" />
+    <svg className="mark" width="28" height="28" viewBox="0 0 120 120" aria-hidden>
+      <defs>
+        <mask id={cut} maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+          <circle cx="60" cy="60" r="56" fill="#fff" />
+          <path
+            d="M-4 44H50A14 14 0 0 1 64 58V70"
+            stroke="#000"
+            strokeWidth="11"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <circle cx="64" cy="82" r="13" fill="#000" />
+          <circle cx="64" cy="82" r="5.5" fill="#fff" />
+        </mask>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="currentColor" mask={`url(#${cut})`} />
     </svg>
   );
 }
