@@ -58,7 +58,7 @@ publish it on [GitHub Pages](github-action.md#3-a-public-map-on-github-pages) or
        timeout-minutes: 5
        steps:
          - uses: actions/checkout@v4
-         - uses: getfurio/furio@30d33401060adc9da3e213d0281086c3ace176cb # v0.5.1
+         - uses: getfurio/furio@46116c5869acef95c26d1dd7b90bf622af8bb6d9 # v0.6.0
            with:
              output: furio
              upload-token: ${{ secrets.FURIO_UPLOAD_TOKEN }}
