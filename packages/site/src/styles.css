@@ -577,8 +577,23 @@ a:hover {
   padding: 12px 10px;
   border-right: 1px solid var(--border);
   background: var(--bg);
-  overflow-y: auto;
   min-width: 0;
+  /* As tall as the window, never taller: the list of projects scrolls inside it. */
+  min-height: 0;
+}
+
+/* The projects are what scrolls, not the sidebar: the search results open over the main column
+   instead of being cut at the sidebar's edge. */
+.projects {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Inset: a ring drawn outside a link would be cut by the scrolling list. */
+.projects a:focus-visible {
+  outline-offset: -2px;
 }
 
 .workspace {
