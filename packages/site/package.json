@@ -13,7 +13,7 @@
     "dompurify": "^3.4.16",
     "elkjs": "^0.12.0",
     "html-to-image": "^1.11.13",
-    "lucide-react": "^1.49.0",
+    "lucide-react": "^1.52.0",
     "marked": "^18.0.14",
     "mermaid": "^12.0.0",
     "react": "^19.3.0",
