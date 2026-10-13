@@ -1,8 +1,10 @@
 # Furio Cloud
 
-Furio Cloud hosts the map of a workspace at `getfurio.com/w/<name>`. Each repo sends its own
-`.architecture/` folder from its GitHub Action: there is no catalog repo to run and no token that
-reads your code. Furio never reads the repos; it only receives what the Action sends.
+Furio Cloud hosts the map of your workspace at `getfurio.com/w/<name>`, private on a paid plan,
+with nothing to run: each repo sends its own manifest from its GitHub Action.
+
+There is no catalog repo and no token that reads your code. Furio never reads the repos; it only
+receives the `.architecture/` folder the Action sends.
 
 ## Free or paid
 
@@ -57,7 +59,7 @@ publish it on [GitHub Pages](github-action.md#3-a-public-map-on-github-pages) or
        runs-on: ubuntu-latest
        timeout-minutes: 5
        steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v7
          - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
            with:
              output: furio
@@ -76,10 +78,21 @@ publish it on [GitHub Pages](github-action.md#3-a-public-map-on-github-pages) or
 ## Architecture changes on pull requests
 
 On the Business plan, the same step comments every pull request with what it would change on
-the map: components added, removed or changed (and which fields), relations, references to
-check, with links to the map. One comment per pull request, updated on every push; nothing is
-stored until the change reaches the default branch. Give the workflow the permission to
-comment:
+the map. Reviewers see the architecture change next to the code change, before it is merged.
+
+Say a pull request in `shop-api` adds a Redis cache and moves the API to a new runtime. The
+comment reads:
+
+| Change           | Component       | Type    |
+| ---------------- | --------------- | ------- |
+| Added            | `shop/cache`    | cache   |
+| Changed: runtime | `shop/shop-api` | service |
+
+followed by the relations added or removed, the references to check (a typo such as
+`platform/user-api`), and links to the map. There is one comment per pull request, updated on
+every push. Nothing is stored until the change reaches the default branch.
+
+Give the workflow the permission to comment:
 
 ```yaml
 permissions:
@@ -138,46 +151,67 @@ FURIO_UPLOAD_TOKEN=... npx @getfurio/cli@latest upload --repo <owner>/<repo>
 
 ## What the hosted map adds
 
-The map on Furio Cloud is the same as the open source one, plus what only a server can know
-and, on the paid plans, other ways to lay it out:
+The map on Furio Cloud is the [same as the open source one](map.md), plus what only a server can
+know. On every plan, Free included:
 
-- an icon on each card for its technology or provider (`tech: postgres`, `provider: stripe`),
-  on every plan, Free included;
-- in the detail panel, when each repo last uploaded and from which commit;
-- the **history** of the map: every upload is kept with what it changed (7 days on Free, 90 on
-  Individual, a year on Business). **Changes**, in the workspace, lists the uploads and what each
-  changed, filterable by project; on the map, **Changes** in the filter bar marks what was added or
-  changed in a period, and the panel shows the recent changes of each component;
-- on Individual and Business, **email digests** of what is new on the map: broken references,
-  components referenced but not declared, repos that have not uploaded for 30 days, components
-  without an owner. At most one email a day, each problem once, to every member; turn them off
-  in the workspace's **Settings**;
-- on Individual and Business, **domain checks**: every component with `type: domain` and its host
-  name in `name` (`name: example.com`) is checked every day: when the registration expires (RDAP),
-  the certificate served on port 443, and that DNS resolves. The results show in the panel, on the
-  health page and in the workspace's **Domains**, and members get an email 30, 14, 7 and 1 days
-  before an expiry, or as soon as a certificate is not valid;
-- on Individual and Business, **provider incidents**: when the `provider` of a component (or its
-  `runtime`, for hosting platforms such as `vercel` or `cloudflare`) has a public status page that
-  Furio reads, an incident the provider reports there shows on the map, as a badge on the cards of
-  the components that use it, a section in their panel and an entry on the health page, and in the
-  workspace's **Incidents**. That page also lists the past incidents, the ones Furio saw closed,
-  as far back as the plan keeps the history. Furio reads each page every 5 minutes. Members get an
-  email when an incident starts, with a link to what depends on each component, and another when
-  it closes; in the workspace's **Settings** you choose which incidents (major and critical, the
-  default; minor too; or none). All of it is what the provider reports: status pages can be late
-  or incomplete, and Furio cannot confirm them;
-- on Individual and Business, **Arrange**: the map by tiers, around one component, or grouped by
-  owner, host or type. [Arranging the map](#arranging-the-map) describes each.
+- each card shows an icon for its technology or provider (`tech: postgres`, `provider: stripe`);
+- the detail panel says when each repo last uploaded, and from which commit;
+- the map keeps its **history**: every upload, with what it changed.
 
-The status pages Furio reads, by the `provider` to write in the manifest: `bitbucket`, `brevo`,
+### What changed this week?
+
+**Changes**, in the workspace, lists every upload and what it changed, filterable by project. On
+the map, **Changes** in the filter bar marks what was added or changed in a period, and the
+panel shows the recent changes of each component. The history goes back 7 days on Free, 90 on
+Individual and a year on Business.
+
+### Email digests
+
+On Individual and Business: at most one email a day, to every member, with what is new on the map: broken references,
+components referenced but not declared, repos that have not uploaded for 30 days, components
+without an owner. Each problem is reported once. Turn them off in the workspace's **Settings**.
+
+### Domain checks
+
+On Individual and Business, every component with `type: domain` and its host name in `name`
+(`name: example.com`) is checked every day: when the registration expires (RDAP), the certificate served on port 443, and that
+DNS resolves.
+
+When the certificate of `example.com` has 14 days left, every member gets an email, and the
+domain's panel on the map says so. Emails go out 30, 14, 7 and 1 days before an expiry, or as soon as a
+certificate is not valid. The results also show in the panel, on the health page and in the
+workspace's **Domains**.
+
+### Provider incidents
+
+On Individual and Business: when Stripe reports an incident on its status page, Furio sees it
+within 5 minutes. The cards
+of every component with `provider: stripe` get a badge, their panel and the health page explain
+it, and every member gets an email with a link to what depends on each of them. Another email
+follows when the incident closes.
+
+The workspace's **Incidents** lists the open incidents and the past ones, as far back as the
+plan keeps the history. In **Settings** you choose which incidents send emails: major and
+critical (the default), minor too, or none.
+
+Furio reads the status page of the component's `provider`, or of its `runtime` for hosting
+platforms such as `vercel` or `cloudflare`. The `provider` values it knows: `bitbucket`, `brevo`,
 `circleci`, `claude` (or `anthropic`), `clerk`, `clickhouse`, `cloudflare`, `cloudinary`,
 `confluent`, `contentful`, `cursor`, `digitalocean`, `discord`, `docker`, `dropbox`, `elastic`,
 `fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`, `mapbox`,
 `mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`, `render`,
 `resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or `sendgrid`),
 `upstash`, `vercel`, `zoom`. A dotted provider counts by its first part: `github.actions` is
-GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by service and region.
+GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by service and
+region.
+
+All of it is what the provider reports. Status pages can be late or incomplete, and Furio cannot
+confirm them.
+
+### Other ways to lay out the map
+
+On Individual and Business, **Arrange** shows the map by tiers, around one component, or grouped by owner, host or type.
+[Arranging the map](#arranging-the-map) describes each.
 
 ## Arranging the map
 

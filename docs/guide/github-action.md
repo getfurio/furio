@@ -1,40 +1,58 @@
 # Set up Furio
 
-Everything to put Furio to work, on one page: one repo on the map in five minutes, the check on
-every pull request, and the map of the whole organization, public on GitHub Pages or private on
-your own hosting.
+From one repo on your machine to the map of the whole organization, with a check on every pull
+request.
 
-1. [Get started](#1-get-started): one repo on the map in five minutes, and the three places a
-   map can live.
-2. [Check every pull request](#2-check-every-pull-request): the workflow for each repo, or one
+Pick the chapter you need:
+
+1. [Get started](#1-get-started): one repo, on your machine, in five minutes.
+2. [Check every pull request](#2-check-every-pull-request): a workflow in each repo, or one
    command on any other CI.
-3. [A public map on GitHub Pages](#3-a-public-map-on-github-pages): for an organization whose map
-   anyone may see. Free, with nothing to host.
+3. [A public map on GitHub Pages](#3-a-public-map-on-github-pages): for an open source
+   organization. Free, with nothing to host.
 4. [A private map on your own hosting](#4-a-private-map-on-your-own-hosting): for private repos.
-   You build the map and upload it to an S3 bucket, over SFTP or to any static host.
+   You build the map and upload it to an S3 bucket, a server or any static host.
 5. [The Action and the CLI](#5-the-action-and-the-cli): every input, command, option and exit
    code.
 
-A private map with nothing to run is [Furio Cloud](cloud.md), which has its own guide.
+For a private map with nothing to run, [Furio Cloud](cloud.md) has its own guide.
 
 ## 1. Get started
 
-In the repo, with Node 22 or later:
+You need Node 22 or later. In the root of a repo, run:
 
 ```bash
 npx @getfurio/cli init
 ```
 
-It creates `.architecture/architecture.yaml`, an empty manifest with the fields to fill in, and
-the skill that tells [coding agents](agents.md) to keep it updated with the code. Describe what
-the repo owns ([The manifest](manifest.md) has every field), then check it:
+```
+created   .architecture/architecture.yaml
+created   .claude/skills/furio-architecture/SKILL.md
+created   .agents/skills/furio-architecture/SKILL.md
+created   AGENTS.md
+```
+
+The first file is the manifest, still empty. The others teach [coding agents](agents.md) to keep
+it up to date with the code.
+
+Open `.architecture/architecture.yaml` and write what the repo runs. Start small: the services,
+their databases and queues, and what each one calls. [A first manifest](manifest.md#a-first-manifest)
+shows a complete one. Then check it:
 
 ```bash
 npx @getfurio/cli validate
 ```
 
-Errors name the file and the line, and suggest a fix when they can. When Furio approves, look at
-the map of this repo:
+Errors name the file and the line, and suggest a fix:
+
+```
+error .architecture/architecture.yaml:11:11
+  components[1] (shop-db).type is "databse", which is not a valid component type.
+  → Did you mean "database"? Valid: service, function, job, frontend, queue, topic, database, cache, storage, external, client, proxy, domain.
+  [schema-invalid-value]
+```
+
+When the manifest is valid, build the map of this repo and open it:
 
 ```bash
 npx @getfurio/cli build --workspace acme --site --out _site .
@@ -44,16 +62,27 @@ npx @getfurio/cli build --workspace acme --site --out _site .
 npx serve _site            # or: python3 -m http.server -d _site 8000
 ```
 
-`build` writes the map and its data, `model.json`, in `_site`. The map reads `model.json` next to
-its `index.html`, and browsers do not let a page opened from `file://` read other files: that is
-why it needs a static server, and nothing more than that. The same command takes several repos,
-or a whole GitHub organization.
+`build` writes the map, and its data in `model.json`, to `_site`. The map needs a static server
+only because browsers do not let a page opened from `file://` read `model.json`. The same command
+takes several repos, or a whole GitHub organization.
+
+To see what a map of several repos looks like before you write yours, open the
+[live demo](https://furio-demo.github.io/catalog/).
 
 ### Three places for the map
 
 The check on pull requests is the same everywhere. What changes is who builds the map and where
-it lives. The CLI, the Action and the map are open source in all three cases; Furio Cloud is the
-hosted service built on them.
+it lives:
+
+- **An open source organization**: [GitHub Pages](#3-a-public-map-on-github-pages). The live
+  demo is built this way.
+- **Private repos, and you already have a bucket or a server**:
+  [your own hosting](#4-a-private-map-on-your-own-hosting).
+- **Private repos and nothing to run**, or you want the history of the map, emails and comments
+  on pull requests: [Furio Cloud](cloud.md).
+
+The CLI, the Action and the map are open source in all three cases; Furio Cloud is the hosted
+service built on them.
 
 |                      | [GitHub Pages](#3-a-public-map-on-github-pages) | [Your own hosting](#4-a-private-map-on-your-own-hosting) | [Furio Cloud](cloud.md)                                |
 | -------------------- | ----------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
@@ -67,8 +96,9 @@ hosted service built on them.
 
 ## 2. Check every pull request
 
-A check in every repo that has a manifest: an error fails the pull request and shows up on the
-line that caused it. On GitHub it is one workflow; on any other CI, one command.
+Add the check to every repo that has a manifest. A pull request that breaks the manifest fails,
+and the error shows on the line that caused it, in the diff. On GitHub it is one workflow; on any
+other CI, one command.
 
 ### The workflow
 
@@ -92,30 +122,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
 ```
 
-Put your **default branch** in the `push` trigger: `main` in the example, but use `dev`,
-`master` or whatever your repo's default branch is.
-
-The workflow needs only `contents: read`: Furio reads the checked-out files and nothing else. It
-uses no OIDC token (`id-token: write`) and never writes to the repo.
-
-Errors fail the check and show up inline on the pull request diff. Warnings are annotated but do
-not fail it (set `strict: true` to change that). [What Furio checks](manifest.md#what-furio-checks)
-lists every message.
+- Put your **default branch** in the `push` trigger: `main` in the example, or `dev`, `master`,
+  whatever yours is.
+- The workflow needs only `contents: read`. Furio reads the checked-out files and nothing else:
+  no OIDC token (`id-token: write`), no writes to the repo.
+- Errors fail the check. Warnings are annotated but pass; set `strict: true` to fail on them too.
+  [What Furio checks](manifest.md#what-furio-checks) lists every message.
 
 To send the manifest to [Furio Cloud](cloud.md) as well, add `output: furio` and the workspace's
 upload token, as its guide shows.
 
 ### Pin the Action to a commit
 
-The examples pin the Action to the commit of a release, with the version in a comment. A
-commit cannot change; a tag such as `v0` can be moved, by us or by anyone who gets hold of the
-repository, and the job that runs it reads your code and your upload token. To stay current
-without thinking about it, let Dependabot open a pull request when a new release comes out,
-in `.github/dependabot.yml`:
+The examples pin the Action to the commit of a release, with the version in a comment. The job
+that runs it reads your code and your upload token. A commit cannot change; a tag such as `v0`
+can be moved, by us or by anyone who gets hold of the repository.
+
+To stay current anyway, let Dependabot open a pull request when a release comes out. Add
+`.github/dependabot.yml`:
 
 ```yaml
 version: 2
@@ -126,21 +154,24 @@ updates:
       interval: weekly
 ```
 
-The commit of any release: `git ls-remote https://github.com/getfurio/furio refs/tags/v0.3.0`.
-Every release has its own tag (`v0.3.0`, `v0.4.0`...), which we never move; `v0` follows the
-latest 0.x release, if you prefer convenience over pinning.
+Every release has its own tag (`v0.6.4`, `v0.7.0`...), which we never move. To find the commit of
+one: `git ls-remote https://github.com/getfurio/furio refs/tags/v0.6.4`. If you prefer
+convenience over pinning, `v0` follows the latest 0.x release.
 
 ### References to other repos
 
 A manifest can point at a component of another repo (`platform/users-api`). On its own, a repo
-cannot tell a typo from a component that exists elsewhere. Give the check the `model.json` of the
-published map and it can:
+cannot tell a typo, such as `platform/user-api`, from a component that exists elsewhere. Give the
+check the `model.json` of the published map and it can:
 
 ```yaml
 - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
   with:
     model: https://<your-org>.github.io/catalog/model.json
 ```
+
+With it, the typo gets a warning on its line: `"platform/user-api", which no repo in the
+workspace declares. Did you mean "platform/users-api"?`
 
 `model` is a URL the runner can read without signing in, or the path of a file a previous step
 downloaded. If it cannot be read, the check carries on without it and says so. Without `model`,
@@ -160,9 +191,10 @@ It exits with `0` when the manifest is valid, `1` when it is not and `2` when it
 
 ## 3. A public map on GitHub Pages
 
-For an organization whose map anyone may see, such as an open source one: a catalog repo collects
-the manifests of every repo, builds the map and publishes it on GitHub Pages. It is free and
-there is nothing to host.
+For an organization whose map anyone may see, such as an open source one. A catalog repo collects
+the manifests of every repo every hour, builds the map and publishes it on GitHub Pages. It is
+free and there is nothing to host. The [live demo](https://furio-demo.github.io/catalog/) is
+built this way.
 
 > **Private repos:** a GitHub Pages site is public on most plans, even when the repo is private.
 > Only GitHub Enterprise Cloud can restrict who sees it. If your architecture must stay private,
@@ -218,7 +250,7 @@ jobs:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
           out: _site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
@@ -230,7 +262,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 ```
 
 The map is published at `https://<your-org>.github.io/catalog/`. The job summary lists every repo,
@@ -254,10 +286,13 @@ model: https://<your-org>.github.io/catalog/model.json
 
 ## 4. A private map on your own hosting
 
-For private repos whose architecture must stay inside the company: you build the map yourself, on
-your machine or in your CI, and upload it where only your people can open it, such as an S3
-bucket or a server reached over SFTP. The map is plain files: no server-side code, no database,
-no account.
+For private repos whose architecture must stay inside the company. You build the map yourself,
+on your machine or in your CI, and upload it where only your people can open it: an S3 bucket,
+a server reached over SFTP, an internal web server. The map is plain files: no server-side code,
+no database, no account.
+
+A typical setup: a scheduled job in one repo of the organization builds the map every hour and
+syncs it to a bucket that only the office network and the VPN can read.
 
 It is the same map as everywhere else ([Reading the map](map.md)). What it does not have is a
 login of its own: whoever can fetch the files reads your architecture, so the hosting decides who
