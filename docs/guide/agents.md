@@ -1,8 +1,31 @@
 # Coding agents
 
-A map is only as good as its last update. Furio ships a skill that tells AI coding agents
-(Claude Code, Codex and anything that reads `AGENTS.md`) to update `.architecture/` in the same
-change as the code, and to run `furio validate` before they finish.
+A map is only as good as its last update. Furio's skill makes AI coding agents (Claude Code,
+Codex and anything that reads `AGENTS.md`) update the manifest in the same change as the code.
+
+## What it looks like
+
+You ask the agent to put a Redis cache in front of the product lookups of `shop-api`. Along with
+the code, the same change adds to `.architecture/architecture.yaml`:
+
+```yaml
+components:
+  - id: shop-cache
+    type: cache
+    tech: redis
+
+relations:
+  - from: shop-api
+    to: shop-cache
+    type: reads_writes
+```
+
+Then the agent runs `npx @getfurio/cli validate`, fixes what it reports, and mentions the
+manifest change in its summary. The reviewer sees the new cache in the diff, and the map has it
+as soon as the pull request is merged.
+
+If the change touches something the agent cannot see, such as a service of another team whose
+id it does not know, it asks you instead of guessing.
 
 ## Set it up for the whole team
 
