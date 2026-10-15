@@ -172,12 +172,13 @@ and, on the paid plans, other ways to lay it out:
 
 The status pages Furio reads, by the `provider` to write in the manifest: `bitbucket`, `brevo`,
 `circleci`, `claude` (or `anthropic`), `clerk`, `clickhouse`, `cloudflare`, `cloudinary`,
-`confluent`, `contentful`, `cursor`, `digitalocean`, `discord`, `docker`, `dropbox`, `elastic`,
-`fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`, `mapbox`,
-`mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`, `render`,
-`resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or `sendgrid`),
-`upstash`, `vercel`, `zoom`. A dotted provider counts by its first part: `github.actions` is
-GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by service and region.
+`confluent`, `contentful`, `cursor`, `deepseek`, `digitalocean`, `discord`, `docker`, `dropbox`,
+`elastic`, `fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`,
+`mapbox`, `mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`,
+`render`, `resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or
+`sendgrid`), `upstash`, `vercel`, `zoom`. A dotted provider counts by its first part:
+`github.actions` is GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by
+service and region.
 
 ## Arranging the map
 
