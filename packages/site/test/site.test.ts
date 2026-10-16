@@ -3,7 +3,17 @@ import { buildModel } from '@getfurio/core';
 import { describe, expect, it } from 'vitest';
 import { catalogOptions, matchesCatalog, narrows } from '../src/catalog';
 import { diagramKind, findDiagrams, partLabel } from '../src/diagrams';
-import { codeUrl, facet, impact, indexModel, matchesFilter, revision, search } from '../src/model';
+import {
+  codeUrl,
+  facet,
+  impact,
+  indexModel,
+  isDeprecatedRelation,
+  isRetired,
+  matchesFilter,
+  revision,
+  search,
+} from '../src/model';
 import {
   changeMarks,
   changeOptions,
@@ -1112,5 +1122,49 @@ describe('catalog CSV', () => {
     expect(csvCell('shop "api"')).toBe('"shop ""api"""');
     expect(csvCell('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
     expect(csvCell('-2+3')).toBe(`"'-2+3"`);
+  });
+});
+
+describe('lifecycle on the map', () => {
+  const site = indexModel(
+    buildModel(
+      [
+        {
+          id: 'acme/shop',
+          dir: makeRepo(
+            manifest(`version: 1
+project: shop
+owner: t
+components:
+  - { id: api, type: service }
+  - { id: old-pay, type: service, status: deprecated, replaced_by: pay }
+  - { id: pay, type: service }
+  - { id: mailer, type: service, status: maintenance }
+relations:
+  - { from: api, to: old-pay, type: calls, status: deprecated }
+  - { from: api, to: mailer, type: calls }
+  - { from: api, to: pay, type: calls, status: deprecated }
+  - { from: old-pay, to: pay, type: calls }
+`),
+          ),
+        },
+      ],
+      { workspace: 'acme', generatorVersion: 'test', now: new Date('2026-01-01') },
+    ).model,
+  );
+  const relation = (from: string, to: string) =>
+    site.model.relations.find((r) => r.from === `shop/${from}` && r.to === `shop/${to}`)!;
+
+  it('draws deprecated parts quieter, and keeps those in maintenance in service', () => {
+    expect(isRetired(site.byKey.get('shop/old-pay')!)).toBe(true);
+    expect(isRetired(site.byKey.get('shop/mailer')!)).toBe(false);
+    expect(site.byKey.get('shop/old-pay')?.replacedBy).toBe('shop/pay');
+  });
+
+  it('fades the relations marked deprecated and those to a deprecated part', () => {
+    expect(isDeprecatedRelation(site, relation('api', 'old-pay'))).toBe(true);
+    expect(isDeprecatedRelation(site, relation('api', 'pay'))).toBe(true);
+    expect(isDeprecatedRelation(site, relation('api', 'mailer'))).toBe(false);
+    expect(isDeprecatedRelation(site, relation('old-pay', 'pay'))).toBe(false);
   });
 });

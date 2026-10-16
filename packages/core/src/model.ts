@@ -1,4 +1,9 @@
-import type { ComponentStatus, ComponentType, RelationType } from '@getfurio/schema';
+import type {
+  ComponentStatus,
+  ComponentType,
+  RelationStatus,
+  RelationType,
+} from '@getfurio/schema';
 import type { DiagnosticCode, Severity } from './diagnostics.js';
 
 export const MODEL_VERSION = 1;
@@ -66,6 +71,8 @@ export interface ModelComponent {
   host?: string;
   /** Absent means active. */
   status?: Exclude<ComponentStatus, 'active'>;
+  /** What to use instead ("project/component"), for a component in maintenance or deprecated. */
+  replacedBy?: string;
   tags: string[];
   links: Record<string, string>;
   repo?: string;
@@ -82,6 +89,8 @@ export interface ModelRelation {
    * the impact analysis does not follow it.
    */
   critical?: false;
+  /** Absent means active. Deprecated: `from` is moving away from `to`. */
+  status?: Exclude<RelationStatus, 'active'>;
   repo: string;
 }
 

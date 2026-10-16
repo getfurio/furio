@@ -1172,7 +1172,7 @@ a:hover {
   padding: 0 4px;
 }
 
-/* Deprecated and dev-only parts: on the board, but quieter. */
+/* Deprecated and dev-only parts: on the board, but quieter. Maintenance only has its pill. */
 .footprint.is-retired {
   border-style: dashed;
   background: transparent;
@@ -1380,6 +1380,11 @@ a:hover {
   opacity: 0.12;
 }
 
+/* A relation on its way out fades like the parts that are leaving; lit, it shows in full. */
+.trace-group.is-deprecated:not(.is-lit, .is-dim) {
+  opacity: 0.4;
+}
+
 .trace-group.is-lit .trace {
   stroke: var(--accent-2);
   stroke-width: 2.25;
@@ -1510,6 +1515,11 @@ a:hover {
 
 .legend .trace.is-non-critical {
   stroke: var(--text-2);
+}
+
+.legend .trace.is-deprecated {
+  stroke: var(--text-2);
+  opacity: 0.4;
 }
 
 .segmented {
@@ -2350,7 +2360,8 @@ a:hover {
   margin-left: 8px;
 }
 
-.non-critical-tag {
+.non-critical-tag,
+.deprecated-tag {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-2);
@@ -3273,8 +3284,13 @@ a:hover {
   overflow-wrap: anywhere;
 }
 
+.deprecated-tag {
+  border-style: dashed;
+}
+
 .dp-list .ghost-tag,
-.dp-list .non-critical-tag {
+.dp-list .non-critical-tag,
+.dp-list .deprecated-tag {
   margin-left: 0;
 }
 

@@ -26,7 +26,7 @@ import {
 import { createContext, useContext, useMemo } from 'react';
 import { extensionIcon, type CardBadge } from '../extensions';
 import { useAppearance, type Palette, type Theme } from '../theme';
-import { STATUS_LABEL, TYPE_LABEL, type ModelComponent } from '../model';
+import { isRetired, STATUS_LABEL, TYPE_LABEL, type ModelComponent } from '../model';
 import { href } from '../router';
 import type { Side } from './arrange';
 import type { BoardData, FootprintData, Point, RingData, TraceData } from './layout';
@@ -74,7 +74,7 @@ export function Footprint({ id, data }: NodeProps<FootprintNode>) {
           : lit.matches
             ? 'is-match'
             : '';
-  const retired = component.status ? 'is-retired' : '';
+  const retired = isRetired(component) ? 'is-retired' : '';
   return (
     <div
       className={`footprint ${component.ghost ? 'is-ghost' : ''} ${retired} ${state}`}
@@ -250,7 +250,7 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
   const path = useMemo(() => toPath(points, palette), [points, palette]);
   const length = useMemo(() => polylineLength(points), [points]);
   if (!data || points.length < 2) return null;
-  const { relation } = data;
+  const { relation, deprecated } = data;
   const nonCritical = relation.critical === false;
   const outside = (key: string) =>
     (lit.matches && !lit.matches.has(key)) || (lit.marks && !lit.marks[key]);
@@ -262,7 +262,10 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
   const end = points[points.length - 1]!;
   const before = points[points.length - 2]!;
   return (
-    <g className={`trace-group ${state}`} style={{ ['--len' as string]: length }}>
+    <g
+      className={`trace-group ${deprecated ? 'is-deprecated' : ''} ${state}`}
+      style={{ ['--len' as string]: length }}
+    >
       {/* Presentation attributes as well as classes: exports (PNG/SVG) keep the layer colours. */}
       <path
         className={`trace ${relation.type} ${nonCritical ? 'is-non-critical' : ''}`}
@@ -278,6 +281,7 @@ export function Trace({ id, data, source, target }: EdgeProps<TraceEdge>) {
           {relation.from} {relation.type.replace(/_/g, ' ')} {relation.to}
           {relation.protocol ? ` (${relation.protocol})` : ''}
           {nonCritical ? ' · non-critical' : ''}
+          {deprecated ? ' · deprecated' : ''}
         </title>
       </path>
       {palette === 'blueprint' && (
