@@ -292,9 +292,10 @@ export function HealthPage({ site, scope }: { site: Site; scope?: Scope | undefi
       </Section>
 
       {retired.length > 0 && (
-        <Section id="retired" title="Deprecated and dev-only" count={retired.length}>
+        <Section id="retired" title="Maintenance, deprecated and dev-only" count={retired.length}>
           <p className="section-note">
-            On the map but quieter: on their way out, or only for development and CI.
+            In maintenance: still in service, but no new consumers. Deprecated and dev-only: on the
+            map but quieter, on their way out or only for development and CI.
           </p>
           <div className="table-wrap">
             <table className="table">
@@ -302,6 +303,7 @@ export function HealthPage({ site, scope }: { site: Site; scope?: Scope | undefi
                 <tr>
                   <th scope="col">Component</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Replaced by</th>
                   <th scope="col">Used by</th>
                 </tr>
               </thead>
@@ -316,6 +318,13 @@ export function HealthPage({ site, scope }: { site: Site; scope?: Scope | undefi
                         </PeekLink>
                       </td>
                       <td>{STATUS_LABEL[c.status!]}</td>
+                      <td>
+                        {c.replacedBy && (
+                          <PeekLink className="mono" componentKey={c.replacedBy}>
+                            {c.replacedBy}
+                          </PeekLink>
+                        )}
+                      </td>
                       <td className="mono">
                         {users.length ? [...new Set(users.map((r) => r.from))].join(', ') : ''}
                       </td>

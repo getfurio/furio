@@ -27185,7 +27185,8 @@ var RELATION_TYPES = [
   "spawns",
   "depends_on"
 ];
-var COMPONENT_STATUSES = ["active", "deprecated", "dev-only"];
+var COMPONENT_STATUSES = ["active", "maintenance", "deprecated", "dev-only"];
+var RELATION_STATUSES = ["active", "deprecated"];
 var KNOWN_TECH = [
   // languages and runtimes
   "node deno bun python go java kotlin scala ruby php rust dotnet csharp elixir erlang swift",
@@ -27243,7 +27244,10 @@ var ComponentSchema = external_exports.strictObject({
     description: 'Where it runs: a machine, a cluster, a region, e.g. "customer-machine", "vps-1", "aws.eu-west-1".'
   }),
   status: external_exports.enum(COMPONENT_STATUSES).optional().meta({
-    description: "active (the default), deprecated (still running, on its way out) or dev-only (CI, local tools)."
+    description: "active (the default), maintenance (supported, but takes no new consumers), deprecated (still running, on its way out) or dev-only (CI, local tools)."
+  }),
+  replaced_by: ref.optional().meta({
+    description: 'What to use instead, for a component in maintenance or deprecated: a component id, or "project/component".'
   }),
   tags: external_exports.array(external_exports.string().min(1)).optional(),
   links: external_exports.record(external_exports.string().min(1), external_exports.url({ protocol: /^https?$/ })).optional().meta({ description: "Named links, e.g. docs, dashboard, runbook." })
@@ -27258,6 +27262,9 @@ var RelationSchema = external_exports.strictObject({
   description: external_exports.string().optional(),
   critical: external_exports.boolean().optional().meta({
     description: 'False when "from" keeps working if "to" goes down (telemetry, logs, audit, analytics): the map draws the relation, the impact analysis does not follow it. Defaults to true.'
+  }),
+  status: external_exports.enum(RELATION_STATUSES).optional().meta({
+    description: 'active (the default) or deprecated: "from" is moving away from "to" (a migration in progress), even if "to" stays for others.'
   })
 }).meta({ title: "Relation" });
 var DiagramSchema = external_exports.strictObject({
@@ -27431,6 +27438,7 @@ var ManifestCheck = class {
     this.architectureDir = architectureDir;
     this.known = new Set(options.knownComponents ?? []);
     this.hasKnown = options.knownComponents !== void 0;
+    this.deprecated = options.deprecatedComponents ?? /* @__PURE__ */ new Map();
     this.checkPaths = options.checkPaths ?? isCheckout(dirname(architectureDir));
   }
   file;
@@ -27440,6 +27448,7 @@ var ManifestCheck = class {
   data;
   known;
   hasKnown;
+  deprecated;
   checkPaths;
   closed = false;
   suggestions = 0;
@@ -27673,6 +27682,24 @@ var ManifestCheck = class {
       }
       this.checkComponentFields(component, index);
     });
+    const deprecated = new Map(this.deprecated);
+    manifest.components.forEach((component, index) => {
+      const next = typeof component.replaced_by === "string" ? component.replaced_by : void 0;
+      if (next !== void 0) {
+        this.checkReference(
+          next,
+          project,
+          localIds,
+          ["components", index, "replaced_by"],
+          `components[${index}].replaced_by`
+        );
+      }
+      if (localIds.get(component.id) !== index) return;
+      const key = `${project}/${component.id}`;
+      if (component.status === "deprecated")
+        deprecated.set(key, next === void 0 ? void 0 : qualify(next, project));
+      else deprecated.delete(key);
+    });
     if (!manifest.owner) {
       const ownerless = manifest.components.map((component, index) => ({ component, index })).filter(({ component, index }) => !component.owner && localIds.get(component.id) === index);
       if (ownerless.length === 1) {
@@ -27717,6 +27744,7 @@ var ManifestCheck = class {
           at("to")
         );
       }
+      this.checkDeprecatedTarget(relation, index, project, deprecated);
       const key = `${relation.from} ${relation.type} ${target}`;
       const firstIndex = seenRelations.get(key);
       if (firstIndex !== void 0) {
@@ -27733,7 +27761,28 @@ var ManifestCheck = class {
     });
     this.checkDiagrams(manifest, project, localIds);
   }
-  /** tech near-misses and paths that do not exist: warnings, the manifest is still valid. */
+  /**
+   * A relation to a deprecated component is a dependency nobody should add: reported unless the
+   * relation says it is on its way out too, or starts from a component that is.
+   */
+  checkDeprecatedTarget(relation, index, project, deprecated) {
+    const target = qualify(relation.to, project);
+    if (!deprecated.has(target) || relation.status === "deprecated") return;
+    if (deprecated.has(`${project}/${relation.from}`)) return;
+    const next = deprecated.get(target);
+    const local = (key) => key.startsWith(`${project}/`) ? key.slice(project.length + 1) : key;
+    this.addAt(
+      "warning",
+      "relation-to-deprecated",
+      `relations[${index}].to is "${relation.to}", which is deprecated.`,
+      ["relations", index, "to"],
+      next ? `Use "${local(next)}" instead (its replaced_by), or set status: deprecated on this relation while the migration runs.` : "Move off it, or set status: deprecated on this relation while the migration runs."
+    );
+  }
+  /**
+   * tech near-misses, paths that do not exist, replaced_by on a component that is not on its way
+   * out: warnings, the manifest is still valid.
+   */
   checkComponentFields(component, index) {
     const tech = component.tech;
     if (typeof tech === "string" && !KNOWN_TECH.includes(tech)) {
@@ -27746,6 +27795,16 @@ var ManifestCheck = class {
           ["components", index, "tech"],
           `Did you mean "${suggestion}"? Any lowercase name works; this only catches typos.`
         );
+    }
+    const status = component.status ?? "active";
+    if (component.replaced_by !== void 0 && (status === "active" || status === "dev-only")) {
+      this.addAt(
+        "warning",
+        "replaced-by-unused",
+        `components[${index}].replaced_by is set, but the component is ${status}.`,
+        ["components", index, "replaced_by"],
+        "replaced_by only applies to a component in maintenance or deprecated: set its status, or remove replaced_by."
+      );
     }
     const path = component.path;
     if (this.checkPaths && typeof path === "string") {
@@ -28068,10 +28127,18 @@ var MODEL_VERSION = 1;
 function buildModel(sources, options) {
   const ordered = [...sources].sort((a, b) => a.id.localeCompare(b.id));
   const known = /* @__PURE__ */ new Set();
+  const deprecated = /* @__PURE__ */ new Map();
   for (const source of ordered) {
     const manifest = validateRepo(source.dir).manifest;
-    for (const component of manifest?.components ?? [])
-      known.add(`${manifest.project}/${component.id}`);
+    for (const component of manifest?.components ?? []) {
+      const key = `${manifest.project}/${component.id}`;
+      if (known.has(key)) continue;
+      known.add(key);
+      if (component.status === "deprecated") {
+        const next = component.replaced_by;
+        deprecated.set(key, next === void 0 ? void 0 : qualify(next, manifest.project));
+      }
+    }
   }
   const results = /* @__PURE__ */ new Map();
   const issues = [];
@@ -28080,7 +28147,10 @@ function buildModel(sources, options) {
   const relations = [];
   const diagrams = [];
   for (const source of ordered) {
-    const result = validateRepo(source.dir, { knownComponents: known });
+    const result = validateRepo(source.dir, {
+      knownComponents: known,
+      deprecatedComponents: deprecated
+    });
     const extra = [];
     const manifest = result.valid ? result.manifest : void 0;
     if (manifest) {
@@ -28128,7 +28198,11 @@ function buildModel(sources, options) {
   repos.sort((a, b) => a.id.localeCompare(b.id));
   const declared = [...components.values()].sort((a, b) => a.key.localeCompare(b.key));
   const ghosts = /* @__PURE__ */ new Map();
-  const referenced = [...relations.map((r) => r.to), ...diagrams.flatMap((d) => d.components)];
+  const referenced = [
+    ...relations.map((r) => r.to),
+    ...diagrams.flatMap((d) => d.components),
+    ...declared.flatMap((c) => c.replacedBy ? [c.replacedBy] : [])
+  ];
   for (const key of referenced) {
     if (components.has(key) || ghosts.has(key)) continue;
     const [project, id] = key.split("/");
@@ -28173,6 +28247,7 @@ function addManifest(source, result, manifest, components, relations, diagrams) 
       ...c.path ? { path: c.path.replace(/\/+$/, "") } : {},
       ...c.host ? { host: c.host } : {},
       ...c.status && c.status !== "active" ? { status: c.status } : {},
+      ...c.replaced_by ? { replacedBy: qualify(c.replaced_by, project) } : {},
       tags: c.tags ?? [],
       links: c.links ?? {},
       repo: source.id
@@ -28186,6 +28261,7 @@ function addManifest(source, result, manifest, components, relations, diagrams) 
       ...r.protocol ? { protocol: r.protocol } : {},
       ...r.description ? { description: r.description } : {},
       ...r.critical === false ? { critical: false } : {},
+      ...r.status === "deprecated" ? { status: r.status } : {},
       repo: source.id
     });
   }
@@ -28549,7 +28625,7 @@ import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as rea
 import { basename as basename2, dirname as dirname3, join as join4, relative as relative4 } from "path";
 
 // ../cli/src/skill.generated.ts
-var SKILL = "---\nname: furio-architecture\ndescription: Keep this repo's .architecture/ manifest (Furio) in sync with the code. Use whenever a change adds, removes or renames a service, function, job, frontend, queue, topic, database, cache, storage bucket or external API, or changes who calls, publishes to, consumes from, reads or writes what; also when the user asks about the architecture, dependencies or ownership of this repo.\n---\n\n# Keep the architecture manifest in sync\n\nThis repo describes the part of the architecture it owns in `.architecture/architecture.yaml`\n(or `.architecture/furio.yaml`). CI validates it with Furio, and a catalog merges every repo of\nthe organization into one map. If the code changes and the manifest does not, the map lies.\n\n## When to update it\n\nUpdate the manifest **in the same change** as the code when you:\n\n- add, remove or rename something deployable or stateful: a service, a function (Lambda, Cloud\n  Function), a scheduled job, a frontend, a queue, a topic, a database, a cache, a storage bucket;\n- start or stop depending on something: a new HTTP/gRPC client, a new event published or\n  consumed, a new table read or written, a new third-party API (Stripe, an email provider, ...);\n- move a responsibility to another team (`owner`).\n\nPure refactors, tests, styling and internal code moves need no manifest change.\n\n## How to edit it\n\n1. Read the current manifest first. Keep its style and order.\n2. Components are things **this repo owns**. Never declare a component owned by another repo:\n   reference it instead.\n3. Relations always start `from` a component declared in this manifest. `to` is either a component\n   of the same project (`users-api`) or of another project (`platform/users-api`).\n4. Use only these values:\n   - component `type`: `service`, `function`, `job`, `frontend`, `queue`, `topic`, `database`,\n     `cache`, `storage`, `external`, `client` (installed desktop/mobile app), `proxy` (reverse\n     proxy, load balancer, CDN), `domain` (a domain name)\n   - relation `type`: `calls`, `publishes`, `consumes`, `reads`, `writes`, `reads_writes`,\n     `serves` (domain or proxy in front of a component), `spawns` (starts a child process),\n     `depends_on`; every relation reads \"from depends on to\"\n   - ids: kebab-case (`payments-api`), unique within the project\n   - `provider` / `runtime` / `host`: lowercase dotted strings (`aws.sqs`, `aws.lambda`,\n     `stripe`, `vps-1`)\n   - optional: `tech` (the technology: `postgres`, `nginx`), `path` (the component's folder,\n     `apps/server`), `status` (`deprecated` or `dev-only`)\n   - optional on a relation: `critical: false`, when the `from` component keeps doing its job if\n     `to` is down (see point 6)\n5. When a component gets a new folder, or moves, update its `path`. An outside service that calls\n   this repo (a webhook, an OAuth callback) is modelled from the receiving side:\n   `from: <receiver>`, `to: <service>`, `type: consumes`.\n6. Mark a relation `critical: false` only when the code shows that `from` works without `to`:\n   it exports telemetry, ships logs, writes an audit trail or reports to analytics, and a failure\n   there is swallowed or retried in the background. The relation stays on the map, but out of the\n   blast radius. Everything a request needs to succeed (a database, a queue, an API whose error\n   is returned to the caller) is critical: leave the field out. Never use it to make a blast\n   radius look smaller, and if you cannot tell, leave it out and ask the user.\n7. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or\n   the id of a component in another repo is unknown, ask the user rather than guess.\n8. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.\n\nExample of a change that adds a consumer of an existing queue in another project:\n\n```yaml\ncomponents:\n  - id: invoice-worker\n    type: function\n    provider: aws.lambda\n\nrelations:\n  - from: invoice-worker\n    to: shop/orders-events\n    type: consumes\n```\n\n## Check it\n\nRun the validator before finishing:\n\n```bash\nnpx @getfurio/cli validate\n```\n\nFix every error it reports (it gives the file, line and a suggested fix). Warnings about\nreferences to other repos are expected when the other repo is not checked out. In your summary of\nthe change, mention what you updated in the architecture manifest.\n\nIf the repo has no `.architecture/` folder yet, do not create one unprompted: suggest\n`npx @getfurio/cli init` to the user.\n";
+var SKILL = "---\nname: furio-architecture\ndescription: Keep this repo's .architecture/ manifest (Furio) in sync with the code. Use whenever a change adds, removes or renames a service, function, job, frontend, queue, topic, database, cache, storage bucket or external API, or changes who calls, publishes to, consumes from, reads or writes what; also when the user asks about the architecture, dependencies or ownership of this repo.\n---\n\n# Keep the architecture manifest in sync\n\nThis repo describes the part of the architecture it owns in `.architecture/architecture.yaml`\n(or `.architecture/furio.yaml`). CI validates it with Furio, and a catalog merges every repo of\nthe organization into one map. If the code changes and the manifest does not, the map lies.\n\n## When to update it\n\nUpdate the manifest **in the same change** as the code when you:\n\n- add, remove or rename something deployable or stateful: a service, a function (Lambda, Cloud\n  Function), a scheduled job, a frontend, a queue, a topic, a database, a cache, a storage bucket;\n- start or stop depending on something: a new HTTP/gRPC client, a new event published or\n  consumed, a new table read or written, a new third-party API (Stripe, an email provider, ...);\n- move a responsibility to another team (`owner`).\n\nPure refactors, tests, styling and internal code moves need no manifest change.\n\n## How to edit it\n\n1. Read the current manifest first. Keep its style and order.\n2. Components are things **this repo owns**. Never declare a component owned by another repo:\n   reference it instead.\n3. Relations always start `from` a component declared in this manifest. `to` is either a component\n   of the same project (`users-api`) or of another project (`platform/users-api`).\n4. Use only these values:\n   - component `type`: `service`, `function`, `job`, `frontend`, `queue`, `topic`, `database`,\n     `cache`, `storage`, `external`, `client` (installed desktop/mobile app), `proxy` (reverse\n     proxy, load balancer, CDN), `domain` (a domain name)\n   - relation `type`: `calls`, `publishes`, `consumes`, `reads`, `writes`, `reads_writes`,\n     `serves` (domain or proxy in front of a component), `spawns` (starts a child process),\n     `depends_on`; every relation reads \"from depends on to\"\n   - ids: kebab-case (`payments-api`), unique within the project\n   - `provider` / `runtime` / `host`: lowercase dotted strings (`aws.sqs`, `aws.lambda`,\n     `stripe`, `vps-1`)\n   - optional: `tech` (the technology: `postgres`, `nginx`), `path` (the component's folder,\n     `apps/server`), `status` (`maintenance`, `deprecated` or `dev-only`), `replaced_by` (what to\n     use instead of a component in maintenance or deprecated)\n   - optional on a relation: `critical: false`, when the `from` component keeps doing its job if\n     `to` is down (see point 6); `status: deprecated`, while `from` moves off `to` (point 7)\n5. When a component gets a new folder, or moves, update its `path`. An outside service that calls\n   this repo (a webhook, an OAuth callback) is modelled from the receiving side:\n   `from: <receiver>`, `to: <service>`, `type: consumes`.\n6. Mark a relation `critical: false` only when the code shows that `from` works without `to`:\n   it exports telemetry, ships logs, writes an audit trail or reports to analytics, and a failure\n   there is swallowed or retried in the background. The relation stays on the map, but out of the\n   blast radius. Everything a request needs to succeed (a database, a queue, an API whose error\n   is returned to the caller) is critical: leave the field out. Never use it to make a blast\n   radius look smaller, and if you cannot tell, leave it out and ask the user.\n7. A component in `maintenance` or `deprecated` takes no new consumers. Before adding a relation,\n   check the `status` of its `to`; `furio validate` warns with `relation-to-deprecated`. Use its\n   `replaced_by` instead, or ask the user. Never mark a new relation `status: deprecated` to\n   silence the warning: that status is for an existing relation whose migration has started. When\n   the code stops using the old component, remove the relation.\n8. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or\n   the id of a component in another repo is unknown, ask the user rather than guess.\n9. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.\n\nExample of a change that adds a consumer of an existing queue in another project:\n\n```yaml\ncomponents:\n  - id: invoice-worker\n    type: function\n    provider: aws.lambda\n\nrelations:\n  - from: invoice-worker\n    to: shop/orders-events\n    type: consumes\n```\n\n## Check it\n\nRun the validator before finishing:\n\n```bash\nnpx @getfurio/cli validate\n```\n\nFix every error it reports (it gives the file, line and a suggested fix). Warnings about\nreferences to other repos are expected when the other repo is not checked out. In your summary of\nthe change, mention what you updated in the architecture manifest.\n\nIf the repo has no `.architecture/` folder yet, do not create one unprompted: suggest\n`npx @getfurio/cli init` to the user.\n";
 
 // ../cli/package.json
 var package_default = {
@@ -29009,15 +29085,19 @@ async function validate2(paths, values, io) {
   if (!["pretty", "json", "github"].includes(format)) {
     throw new UsageError(`Unknown format "${values.format}". Use pretty, json or github.`);
   }
-  let knownComponents;
+  const options = {};
   if (values.model) {
     const model = await loadModel(values.model, io);
-    knownComponents = model?.components.filter((c) => !c.ghost).map((c) => c.key);
+    if (model) {
+      const declared = model.components.filter((c) => !c.ghost);
+      options.knownComponents = declared.map((c) => c.key);
+      options.deprecatedComponents = new Map(
+        declared.filter((c) => c.status === "deprecated").map((c) => [c.key, c.replacedBy])
+      );
+    }
   }
   const targets = paths.length ? paths : ["."];
-  const results = targets.map(
-    (target) => validateRepo(resolve3(io.cwd, target), knownComponents ? { knownComponents } : {})
-  );
+  const results = targets.map((target) => validateRepo(resolve3(io.cwd, target), options));
   const color = !values.plain && io.isTTY && !io.env.NO_COLOR && format !== "json";
   if (format === "json") {
     io.stdout(formatJson(results, io.cwd));

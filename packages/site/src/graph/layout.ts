@@ -2,6 +2,7 @@ import ELK, { type ElkExtendedEdge, type ElkNode, type ElkPort } from 'elkjs/lib
 import elkWorkerUrl from 'elkjs/lib/elk-worker.min.js?url';
 import type { Edge, Node } from '@xyflow/react';
 import {
+  isDeprecatedRelation,
   matchesFilter,
   withNeighbours,
   type FacetKey,
@@ -67,6 +68,8 @@ export interface RingData extends Record<string, unknown> {
 export interface TraceData extends Record<string, unknown> {
   relation: ModelRelation;
   points: Point[];
+  /** On its way out: marked deprecated, or to a deprecated component. */
+  deprecated: boolean;
 }
 
 export interface Layout {
@@ -417,7 +420,7 @@ async function layoutIn(
     const points = section
       ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
       : [];
-    return trace(r, i, points);
+    return trace(r, i, points, isDeprecatedRelation(site, r));
   });
 
   return {
@@ -429,7 +432,7 @@ async function layoutIn(
   };
 }
 
-function trace(relation: ModelRelation, i: number, points: Point[]): Edge {
+function trace(relation: ModelRelation, i: number, points: Point[], deprecated: boolean): Edge {
   return {
     id: `rel:${i}`,
     source: relation.from,
@@ -437,7 +440,7 @@ function trace(relation: ModelRelation, i: number, points: Point[]): Edge {
     sourceHandle: `${relation.from}#o${i}`,
     targetHandle: `${relation.to}#i${i}`,
     type: 'trace',
-    data: { relation, points } satisfies TraceData,
+    data: { relation, points, deprecated } satisfies TraceData,
     zIndex: 1,
   };
 }
@@ -546,7 +549,7 @@ function layoutAround(site: Site, scope: LayoutScope): Layout {
       card.padSide[id] = end.side;
       card.padAt[id] = { x: end.x - at.x, y: end.y - at.y };
     }
-    return trace(r, i, behind ? [from, bend, to] : [from, to]);
+    return trace(r, i, behind ? [from, bend, to] : [from, to], isDeprecatedRelation(site, r));
   });
 
   const nodes: Node[] = around.rings.map((ring, i) => ({

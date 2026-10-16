@@ -39,9 +39,10 @@ Pure refactors, tests, styling and internal code moves need no manifest change.
    - `provider` / `runtime` / `host`: lowercase dotted strings (`aws.sqs`, `aws.lambda`,
      `stripe`, `vps-1`)
    - optional: `tech` (the technology: `postgres`, `nginx`), `path` (the component's folder,
-     `apps/server`), `status` (`deprecated` or `dev-only`)
+     `apps/server`), `status` (`maintenance`, `deprecated` or `dev-only`), `replaced_by` (what to
+     use instead of a component in maintenance or deprecated)
    - optional on a relation: `critical: false`, when the `from` component keeps doing its job if
-     `to` is down (see point 6)
+     `to` is down (see point 6); `status: deprecated`, while `from` moves off `to` (point 7)
 5. When a component gets a new folder, or moves, update its `path`. An outside service that calls
    this repo (a webhook, an OAuth callback) is modelled from the receiving side:
    `from: <receiver>`, `to: <service>`, `type: consumes`.
@@ -51,9 +52,14 @@ Pure refactors, tests, styling and internal code moves need no manifest change.
    blast radius. Everything a request needs to succeed (a database, a queue, an API whose error
    is returned to the caller) is critical: leave the field out. Never use it to make a blast
    radius look smaller, and if you cannot tell, leave it out and ask the user.
-7. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or
+7. A component in `maintenance` or `deprecated` takes no new consumers. Before adding a relation,
+   check the `status` of its `to`; `furio validate` warns with `relation-to-deprecated`. Use its
+   `replaced_by` instead, or ask the user. Never mark a new relation `status: deprecated` to
+   silence the warning: that status is for an existing relation whose migration has started. When
+   the code stops using the old component, remove the relation.
+8. Do not invent facts you cannot see in the code or the conversation: if the owner, the provider or
    the id of a component in another repo is unknown, ask the user rather than guess.
-8. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.
+9. If a Mermaid diagram listed under `diagrams:` shows the flow you changed, update it too.
 
 Example of a change that adds a consumer of an existing queue in another project:
 

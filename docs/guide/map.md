@@ -1,9 +1,118 @@
 # Reading the map
 
-Each project is a group of cards, each component a card with an icon for its type, and each
-relation an edge coloured by kind. The map follows your system's light or dark theme. **Appearance**, at the bottom of the
-sidebar, sets the theme (system, light, dark) and the palette (Furio, Blueprint, Circuit) of the
-map and its diagrams, in this browser. Each card's icon tile has the colour of its type.
+The map shows every component of your workspace and what depends on what.
+
+This page starts from the questions people bring to it, then goes through each part of the
+screen. Every example opens on the [live demo](https://furio-demo.github.io/catalog/), a small
+shop of three repos.
+
+## Questions the map answers
+
+### What breaks if this goes down?
+
+Click the card, then **Blast radius** in the panel. Every part that stops working with it lights
+up, with how many hops away it is.
+
+On the demo, if `users-db` goes down, three parts go with it: the Users API, the Shop API and
+the storefront.
+[See it](https://furio-demo.github.io/catalog/#/?sel=platform/users-db&mode=impact).
+
+Ask it before maintenance on a database, during an incident, or to see how far a risky change
+can reach. **Depth** stops it after a number of hops. It does not follow
+[non-critical relations](manifest.md#telemetry-logs-and-analytics) such as telemetry and logs.
+
+### What does this need to work?
+
+**Depends on** lights everything the component needs, directly or through other parts. It is the
+list of suspects when something is slow or failing.
+
+On the demo, the storefront needs seven parts.
+[See it](https://furio-demo.github.io/catalog/#/?sel=shop/storefront&mode=depends).
+
+### Who owns what?
+
+**Catalog** lists every component in a table: a tab per type, a search over every field,
+sortable columns, and a menu per field (project, owner, tech, host, provider, status, tag). Pick
+an owner to see what a team answers for, then download the rows as CSV for an audit or an
+on-call review.
+
+On the demo, the platform team owns three components.
+[See them](https://furio-demo.github.io/catalog/#/catalog?owner=team-platform).
+
+### What runs on this server? Where are all our databases?
+
+**Filter**, at the top left of the map (on phones, behind the Filter button), takes a host, a
+technology, a team, a type, a provider or a status, and shows how many parts have each value.
+Matching cards stay lit and the rest are dimmed; **Only these** hides the rest and
+lays the map out again.
+
+Values of the same kind add up: tech `node` or `nginx`. Different kinds narrow down: tech `node`
+and host `vps-1`.
+[Every database of the demo](https://furio-demo.github.io/catalog/#/?type=database&only=1).
+
+### Is anything broken or missing?
+
+**Health** lists what needs a look: repos whose manifest is invalid, repos without a manifest,
+references that no repo declares, components without an owner, components in maintenance,
+deprecated or dev-only (with what replaces them and who still uses them), and every issue Furio
+found.
+[The demo's health](https://furio-demo.github.io/catalog/#/health).
+
+### How does it work, step by step?
+
+The graph shows who depends on whom; diagrams show the order of things. **Diagrams** shows every
+diagram of the workspace, with a search and a menu by project. Each one also appears on the
+pages of the components it describes.
+[The demo's diagrams](https://furio-demo.github.io/catalog/#/diagrams).
+[The manifest](manifest.md#diagrams) shows how to add one.
+
+### What should I send a colleague?
+
+The address. Every state lives in the URL: the selected card, the question, the depth, the
+filter, the project, the catalog tab. Copy it and the other person sees the same view:
+
+```
+#/?sel=platform/users-db&mode=impact&depth=2
+#/p/shop?type=service,database&host=vps-1&only=1
+#/catalog?type=service&owner=team-shop,team-web&tag=critical
+```
+
+A link with `mode=impact` or `mode=depends` opens on its answer, with every lit card in view.
+
+### Can I look at one project only?
+
+Yes. Click a project in the sidebar, or open a link that starts with `#/p/<project>`. Every page
+then shows that project:
+
+- **Map**: the project, plus the parts of other projects it touches.
+- **Catalog**: its components.
+- **Health**: its repos and their issues, its components without an owner, and the parts on its
+  map that no repo declares. Repos in no project yet (without a manifest, or with one Furio could
+  not read) belong to the workspace: the page says how many and links to the workspace's health.
+- **Diagrams**: its diagrams.
+
+The counts in the sidebar, the search and the filter follow the project too. A plate under the
+workspace name shows the project you are in; its **×** goes back to the whole workspace, on the
+same page. A click on another project keeps the page: from the catalog of one project to the
+catalog of the other.
+
+The project is a prefix of the URL, so a shared link opens on it:
+
+```
+#/p/shop
+#/p/shop/catalog?type=database
+#/p/shop/health
+#/p/shop/c/platform/users-api
+```
+
+Links without the prefix show the whole workspace.
+
+## The screen
+
+### Cards and edges
+
+Each project is a group of cards. Each component is a card with an icon for its type, and each
+relation is an edge coloured by kind:
 
 | Relation                      | Colour       |
 | ----------------------------- | ------------ |
@@ -13,120 +122,51 @@ map and its diagrams, in this browser. Each card's icon tile has the colour of i
 | serves                        | cyan         |
 | depends on · spawns           | grey, dashed |
 
-A dotted edge, in any of these colours, is a **non-critical** relation
-([`critical: false`](manifest.md#non-critical-relations)): the component at its start keeps
-working without the one at its end. The legend shows it, and the panel and the component page
-mark it.
+- A **dotted** edge, in any colour, is a non-critical relation
+  ([`critical: false`](manifest.md#telemetry-logs-and-analytics)): the part at its start keeps
+  working without the one at its end.
+- A **faded** edge is on its way out: the relation has `status: deprecated`, or it goes to a
+  deprecated component ([a service on its way out](manifest.md#a-service-on-its-way-out)).
+- A **dashed** card marked **Not declared** is referenced by some repo but declared by none.
+- A card drawn quieter, labelled **Deprecated** or **Dev only**, has that `status`. A
+  **Maintenance** label marks a part still in service that takes no new consumers.
+- Cards show the `tech` next to the type; a domain shows its name.
 
-A dashed card marked **Not declared** is referenced by some repo but declared by none. A card
-drawn quieter with a **Deprecated** or **Dev only** label has that `status`. Cards show the
-`tech` next to the type; a domain shows its name.
+**Appearance**, at the bottom of the sidebar, sets the theme (system, light, dark) and the
+palette (Furio, Blueprint, Circuit) of the map and its diagrams, in this browser.
 
-## Views
+### Pages
 
-- **Map** (`#/`): every project of the workspace and the dependencies between them. A map too
-  large to read whole opens where it starts, at a readable size, and pans from there: the top of
-  a flow that runs down, the left of one that runs right.
-- **Project** (`#/p/<project>`): one project, plus the parts of other projects it touches. It
-  is also the way into the project's scope: the other pages then show that project only
-  ([one project](#one-project)).
-- **Component** (`#/c/<project>/<component>`): owner, repo, links, every relation (pins), what it
-  affects and what it needs (impact), and its diagrams. `j` / `k` move to the next and previous
-  part.
-- **Health** (`#/health`): invalid repos, repos without a manifest, ghost references, components
-  without an owner, and every issue Furio found.
-- **Catalog** (`#/catalog`): every component in a table, a tab per type the workspace has
-  (Services, Databases, Domains...), a search over every field, sortable columns and a CSV
-  download of the rows on screen. A menu per field (project, owner, tech, host, provider, status,
-  tag) filters on its values, each with how many rows have it: values of one menu add up,
-  different menus narrow down, as in the map's filter. A click on a name opens a quick look; the
-  URL keeps the tab, the search and the filters, as in
-  `#/catalog?type=service&owner=team-shop,team-web&tag=critical`.
-- **Diagrams** (`#/diagrams`): every diagram of the workspace as a card with its title, its kind
-  (flowchart, sequence, state...), its project and repo, and the components it describes. A search
-  finds a diagram by any of them, and a menu keeps some projects only. A card opens the diagram on
-  a page of its own, with links to the components it describes; `j` / `k` move to the next and
-  previous of the diagrams found, and **Diagrams** leads back to them. Add diagrams as `.mmd` or
-  `.md` files in `.architecture/diagrams/` and list them under `diagrams:` in the manifest
-  ([how](manifest.md#diagrams)).
+| Page      | Address                     | What it shows                                                |
+| --------- | --------------------------- | ------------------------------------------------------------ |
+| Map       | `#/`                        | Every project and the dependencies between them              |
+| Project   | `#/p/<project>`             | One project, plus the parts of other projects it touches     |
+| Component | `#/c/<project>/<component>` | Owner, repo, links, every relation, impact, diagrams         |
+| Health    | `#/health`                  | What needs a look                                            |
+| Catalog   | `#/catalog`                 | Every component in a table, with filters and a CSV download  |
+| Diagrams  | `#/diagrams`                | Every diagram, as cards; each one opens on a page of its own |
 
-## One project
+A map too large to read whole opens where it starts, at a readable size, and pans from there:
+the top of a flow that runs down, the left of one that runs right.
 
-In a workspace with several projects, a reader can look at one at a time. Click a project in the
-sidebar, or open a link that starts with `#/p/<project>`, and every page shows that project:
-
-- **Map**: the project, plus the parts of other projects it touches.
-- **Catalog**: the project's components.
-- **Health**: the project's repos and their issues, its components without an owner, and the
-  parts on its map that no repo declares. Repos in no project yet (without a manifest, or with
-  one Furio could not read) belong to the workspace: the page says how many and links to the
-  workspace's health.
-- **Diagrams**: the project's diagrams.
-
-The counts in the sidebar are the project's, the search finds what its map shows, and the filter
-offers the values of the cards on its map. A plate under the workspace name shows the project you
-are in; its **×** shows the whole workspace again, on the same page. A click on another project
-in the sidebar keeps the page: from the catalog of one project to the catalog of the other.
-
-The project is a prefix of the URL, so a shared link opens on it and every page keeps it:
-
-```
-#/p/shop
-#/p/shop/catalog?type=database
-#/p/shop/health
-#/p/shop/diagrams
-#/p/shop/c/platform/users-api
-```
-
-Links without the prefix show the whole workspace, as they always have.
-
-## Moving around
-
-Links to components on the catalog, health, diagrams and component pages open a **quick look**:
-the same panel as on the map, without leaving the page (⌘/Ctrl-click opens the full page). The
-component page has **Back** to the page you came from. Each diagram has an **Enlarge** button:
-full screen, zoom with the wheel, a pinch or `+` `-`, drag to move, `0` to fit, `Esc` to close.
-
-## The detail panel
+### The detail panel
 
 Click a card to select it: its relations light up and a panel opens on the right (a sheet from
-the bottom on phones) with what Furio knows about it: type, provider, runtime, owner, project and
-repo, description, links, what it depends on and what uses it, and its diagrams. Click a related
-component in the panel to move to it. **Open page**, a double click on the card or `Enter` open
-the full component page; `Esc`, or a click anywhere off the cards, closes the panel.
+the bottom on phones). It shows the type, provider, runtime, owner, project and repo, the
+description and links, what the component depends on and what uses it, and its diagrams. Choose
+there what to light: **Relations**, **Blast radius** or **Depends on**.
 
-## Asking the map a question
+Click a related component in the panel to move to it. **Open page**, a double click on the card
+or `Enter` open the full component page. `Esc`, or a click off the cards, closes the panel.
 
-With a card selected, choose in the panel what to light:
+On the catalog, health, diagrams and component pages, a link to a component opens a **quick
+look**: the same panel, without leaving the page (⌘/Ctrl-click opens the full page). The
+component page has **Back** to the page you came from.
 
-- **Relations**: its direct relations.
-- **Blast radius**: everything that is affected if it goes down, following dependents through the
-  graph. Each lit card shows how many hops away it is.
-- **Depends on**: everything it needs to work.
+Each diagram has an **Enlarge** button: full screen, zoom with the wheel, a pinch or `+` `-`,
+drag to move, `0` to fit, `Esc` to close.
 
-Set **Depth** to limit how far the blast radius and the dependencies go. Neither follows a
-non-critical relation: telemetry, logs and audit trails stay on the map without putting every
-component in every blast radius.
-
-**Filter** (top left; on phones behind the Filter button): type a technology, a team, a host,
-a type, a provider or a status and pick from what the map contains, with how many parts have
-each value. Values of the same kind add up (tech node or nginx), different kinds narrow down
-(tech node and host vps-1). Matching cards stay lit and the rest are dimmed, so the map keeps
-its shape; **Only these** hides the rest and lays the map out again. Backspace removes the last
-value.
-
-Every one of these states lives in the URL, so a view can be shared as a link, for example:
-
-```
-#/?sel=platform/users-db&mode=impact&depth=2
-#/p/shop?type=service,database&host=vps-1&only=1
-```
-
-A link with `mode=impact` or `mode=depends` opens on its answer: the map frames every lit card,
-the selected one included, in the space the panel leaves free. It does the same when you change
-the mode or the depth in the panel.
-
-## Keyboard
+### Keyboard
 
 | Key     | Action                                                                 |
 | ------- | ---------------------------------------------------------------------- |
@@ -134,17 +174,18 @@ the mode or the depth in the panel.
 | `Enter` | Open the page of the selected card                                     |
 | `Esc`   | Close the panel and clear the selection                                |
 | `j` `k` | Next / previous component (component page) or diagram (its page)       |
+| `⌫`     | In the filter: remove the last value                                   |
 
-## Export
+### Export
 
-The buttons under the zoom controls download the whole map as PNG or SVG, and the model as
-JSON (`model.json` is also published next to the map).
+The buttons under the zoom controls download the whole map as PNG or SVG, and the model as JSON.
+`model.json` is also published next to the map.
 
 ## Extending the map
 
-A host that serves the map can add what it knows and the model does not, without changing the
-bundle. A script loaded before the map sets `window.furioExtensions`; add it to `index.html`
-next to the map, for example `<script src="./extensions.js"></script>`:
+This part is for whoever hosts the map. A host can add what it knows and the model does not,
+without changing the bundle. A script loaded before the map sets `window.furioExtensions`; add
+it to `index.html` next to the map, for example `<script src="./extensions.js"></script>`:
 
 ```js
 window.furioExtensions = {
@@ -204,8 +245,9 @@ Every member is optional and may fail without breaking the map. Items take `labe
 an optional `href` (http(s) or a map link such as `#/c/shop/shop-api`), `detail` and `tone`
 (`ok`, `warning` or `error`).
 
-When the reader is in [one project](#one-project), `catalog`, `health` and `changes` also
-receive `project` (absent for the whole workspace) and are asked again when it changes:
+When the reader is in [one project](#can-i-look-at-one-project-only), `catalog`, `health` and
+`changes` also receive `project` (absent for the whole workspace) and are asked again when it
+changes:
 
 - `catalog`: the table shows only the project's rows, whatever the cells.
 - `health`: the sections are shown as returned, so give only what concerns `project`.

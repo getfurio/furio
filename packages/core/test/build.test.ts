@@ -80,6 +80,42 @@ describe('buildModel', () => {
     expect(model.repos[0]?.status).toBe('valid');
   });
 
+  it('carries the lifecycle and warns about relations to deprecated components of other repos', () => {
+    const platform = makeRepo(
+      manifest(
+        'version: 1\nproject: platform\nowner: t\ncomponents:\n  - id: legacy-auth\n    type: service\n    status: deprecated\n    replaced_by: auth\n  - id: auth\n    type: service\n  - id: mailer\n    type: service\n    status: maintenance\n    replaced_by: notify/sender\n',
+      ),
+    );
+    const shop = makeRepo(
+      manifest(
+        'version: 1\nproject: shop\nowner: t\ncomponents:\n  - id: api\n    type: service\nrelations:\n  - from: api\n    to: platform/legacy-auth\n    type: calls\n  - from: api\n    to: platform/mailer\n    type: calls\n    status: deprecated\n',
+      ),
+    );
+    const { model } = buildModel(
+      [
+        { id: 'acme/platform', dir: platform },
+        { id: 'acme/shop', dir: shop },
+      ],
+      OPTIONS,
+    );
+    const byKey = new Map(model.components.map((c) => [c.key, c]));
+    expect(byKey.get('platform/legacy-auth')).toMatchObject({
+      status: 'deprecated',
+      replacedBy: 'platform/auth',
+    });
+    expect(byKey.get('platform/mailer')).toMatchObject({
+      status: 'maintenance',
+      replacedBy: 'notify/sender',
+    });
+    // A replacement nobody declares yet is a ghost, like any reference.
+    expect(byKey.get('notify/sender')?.ghost).toBe(true);
+    expect(model.relations.map((r) => r.status)).toEqual([undefined, 'deprecated']);
+    expect(model.issues).toMatchObject([
+      { repo: 'acme/platform', code: 'unresolved-reference', line: 14 },
+      { repo: 'acme/shop', code: 'relation-to-deprecated', line: 9 },
+    ]);
+  });
+
   it('suggests the right component across repos', () => {
     const repo = makeRepo(
       manifest(

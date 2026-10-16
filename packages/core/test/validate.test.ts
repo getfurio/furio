@@ -245,6 +245,100 @@ describe('validateRepo: semantics', () => {
     ]);
   });
 
+  describe('lifecycle', () => {
+    const LEGACY = `version: 1
+project: shop
+owner: team-shop
+components:
+  - id: shop-api
+    type: service
+  - id: legacy-pay
+    type: service
+    status: deprecated
+    replaced_by: payments
+  - id: payments
+    type: service
+relations:
+  - from: shop-api
+    to: legacy-pay
+    type: calls
+`;
+
+    it('warns about a relation to a deprecated component and names what replaces it', () => {
+      const result = validateRepo(makeRepo(manifest(LEGACY)));
+      expect(result.valid).toBe(true);
+      expect(result.diagnostics).toMatchObject([
+        {
+          severity: 'warning',
+          code: 'relation-to-deprecated',
+          message: 'relations[0].to is "legacy-pay", which is deprecated.',
+          hint: 'Use "payments" instead (its replaced_by), or set status: deprecated on this relation while the migration runs.',
+          line: 15,
+        },
+      ]);
+    });
+
+    it('accepts a relation marked deprecated, or one that starts from a deprecated component', () => {
+      const marked = LEGACY.replace(
+        '    type: calls\n',
+        '    type: calls\n    status: deprecated\n',
+      );
+      expect(validateRepo(makeRepo(manifest(marked))).diagnostics).toEqual([]);
+
+      const retiring = `${LEGACY.replace('to: legacy-pay', 'to: payments')}  - from: legacy-pay\n    to: payments\n    type: calls\n`;
+      expect(validateRepo(makeRepo(manifest(retiring))).diagnostics).toEqual([]);
+    });
+
+    it('lets components in maintenance keep their consumers', () => {
+      const root = makeRepo(manifest(LEGACY.replace('status: deprecated', 'status: maintenance')));
+      expect(validateRepo(root).diagnostics).toEqual([]);
+    });
+
+    it('checks deprecated components of other repos when the workspace says so', () => {
+      const root = makeRepo(
+        manifest(`${VALID}  - from: shop-api\n    to: platform/legacy-auth\n    type: calls\n`),
+      );
+      const result = validateRepo(root, {
+        knownComponents: ['platform/legacy-auth', 'platform/auth'],
+        deprecatedComponents: new Map([['platform/legacy-auth', 'platform/auth']]),
+      });
+      expect(only(result.diagnostics, 'relation-to-deprecated')[0]?.hint).toContain(
+        'Use "platform/auth" instead',
+      );
+    });
+
+    it('trusts the manifest over the workspace about its own components', () => {
+      const root = makeRepo(manifest(VALID));
+      const result = validateRepo(root, {
+        knownComponents: ['shop/orders'],
+        deprecatedComponents: new Map([['shop/orders', undefined]]),
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it('checks replaced_by like any reference, declared before or after', () => {
+      const closed = LEGACY.replace('owner: team-shop\n', 'owner: team-shop\nclosed: true\n');
+      expect(validateRepo(makeRepo(manifest(closed))).diagnostics).toHaveLength(1);
+      const typo = closed.replace('replaced_by: payments', 'replaced_by: payment');
+      const result = validateRepo(makeRepo(manifest(typo)));
+      expect(only(result.diagnostics, 'undeclared-component')[0]).toMatchObject({
+        message:
+          'components[1].replaced_by points to "payment", which this manifest does not declare, and project "shop" is closed (closed: true).',
+        hint: 'Did you mean "payments"?',
+      });
+    });
+
+    it('warns about replaced_by on a component that is not on its way out', () => {
+      const root = makeRepo(manifest(LEGACY.replace('    status: deprecated\n', '')));
+      expect(validateRepo(root).diagnostics).toMatchObject([
+        {
+          code: 'replaced-by-unused',
+          message: 'components[1].replaced_by is set, but the component is active.',
+        },
+      ]);
+    });
+  });
+
   it('warns once about ownerless components, or names the single one', () => {
     const many = makeRepo(manifest(VALID.replace('owner: team-shop\n', '')));
     const [grouped] = validateRepo(many).diagnostics;
