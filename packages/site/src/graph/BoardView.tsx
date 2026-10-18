@@ -579,6 +579,12 @@ function Legend() {
         </svg>
         non-critical, any colour
       </span>
+      <span className="legend-row" title="Marked deprecated, or to a deprecated component">
+        <svg width="22" height="6" aria-hidden>
+          <line x1="0" y1="3" x2="22" y2="3" className="trace is-deprecated" />
+        </svg>
+        deprecated, faded
+      </span>
       <span className="legend-row">
         <svg width="22" height="12" aria-hidden>
           <rect

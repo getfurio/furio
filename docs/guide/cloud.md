@@ -197,13 +197,13 @@ critical (the default), minor too, or none.
 Furio reads the status page of the component's `provider`, or of its `runtime` for hosting
 platforms such as `vercel` or `cloudflare`. The `provider` values it knows: `bitbucket`, `brevo`,
 `circleci`, `claude` (or `anthropic`), `clerk`, `clickhouse`, `cloudflare`, `cloudinary`,
-`confluent`, `contentful`, `cursor`, `digitalocean`, `discord`, `docker`, `dropbox`, `elastic`,
-`fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`, `mapbox`,
-`mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`, `render`,
-`resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or `sendgrid`),
-`upstash`, `vercel`, `zoom`. A dotted provider counts by its first part: `github.actions` is
-GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by service and
-region.
+`confluent`, `contentful`, `cursor`, `deepseek`, `digitalocean`, `discord`, `docker`, `dropbox`,
+`elastic`, `fly`, `github`, `grafana`, `hubspot`, `influxdb`, `linear`, `linode`, `mailgun`,
+`mapbox`, `mixpanel`, `mongodb`, `netlify`, `newrelic`, `npm`, `openai`, `planetscale`, `pusher`,
+`render`, `resend`, `segment`, `sentry`, `shopify`, `stripe`, `supabase`, `twilio` (or
+`sendgrid`), `upstash`, `vercel`, `zoom`. A dotted provider counts by its first part:
+`github.actions` is GitHub. AWS, Google Cloud and Azure are not read yet: they report incidents by
+service and region.
 
 All of it is what the provider reports. Status pages can be late or incomplete, and Furio cannot
 confirm them.

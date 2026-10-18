@@ -94,13 +94,19 @@
             "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
           },
           "status": {
-            "description": "active (the default), deprecated (still running, on its way out) or dev-only (CI, local tools).",
+            "description": "active (the default), maintenance (supported, but takes no new consumers), deprecated (still running, on its way out) or dev-only (CI, local tools).",
             "type": "string",
             "enum": [
               "active",
+              "maintenance",
               "deprecated",
               "dev-only"
             ]
+          },
+          "replaced_by": {
+            "description": "What to use instead, for a component in maintenance or deprecated: a component id, or \"project/component\".",
+            "type": "string",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*\\/)?[a-z0-9]+(?:-[a-z0-9]+)*$"
           },
           "tags": {
             "type": "array",
@@ -172,6 +178,14 @@
           "critical": {
             "description": "False when \"from\" keeps working if \"to\" goes down (telemetry, logs, audit, analytics): the map draws the relation, the impact analysis does not follow it. Defaults to true.",
             "type": "boolean"
+          },
+          "status": {
+            "description": "active (the default) or deprecated: \"from\" is moving away from \"to\" (a migration in progress), even if \"to\" stays for others.",
+            "type": "string",
+            "enum": [
+              "active",
+              "deprecated"
+            ]
           }
         },
         "required": [

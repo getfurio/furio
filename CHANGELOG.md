@@ -4,6 +4,22 @@ Changes to `@getfurio/cli`, the GitHub Action (`getfurio/furio`), the manifest s
 map, newest first. The map ships inside the CLI (`furio build --site`) and the Action
 (`command: build` with `site: true`), so a change to the map reaches both with the same version.
 
+## Unreleased
+
+### Added
+
+- Manifest: `status: maintenance` for a component that is supported but takes no new consumers,
+  `replaced_by` on a component in maintenance or deprecated, and `status: deprecated` on a
+  relation that is being migrated away.
+- `furio validate` and `furio build` warn about a relation to a deprecated component that is not
+  marked deprecated itself (`relation-to-deprecated`, with the replacement in the hint), and
+  about `replaced_by` on an active component (`replaced-by-unused`). With `--model`, `validate`
+  also knows the deprecated components of other repos.
+- Map: relations on their way out are drawn faded, with a row in the legend; the panel, the
+  component page and the health page show what replaces a component and mark deprecated
+  relations.
+- The coding-agent skill tells agents not to add dependencies on deprecated components.
+
 ## 0.6.4 — 2026-10-09
 
 ### Changed

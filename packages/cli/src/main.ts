@@ -20,6 +20,7 @@ import {
   type Model,
   type RepoSource,
   type SkippedRepo,
+  type ValidateOptions,
 } from '@getfurio/core';
 import {
   formatBuild,
@@ -191,16 +192,20 @@ async function validate(paths: string[], values: Values, io: Io): Promise<number
     throw new UsageError(`Unknown format "${values.format}". Use pretty, json or github.`);
   }
 
-  let knownComponents: string[] | undefined;
+  const options: ValidateOptions = {};
   if (values.model) {
     const model = await loadModel(values.model, io);
-    knownComponents = model?.components.filter((c) => !c.ghost).map((c) => c.key);
+    if (model) {
+      const declared = model.components.filter((c) => !c.ghost);
+      options.knownComponents = declared.map((c) => c.key);
+      options.deprecatedComponents = new Map(
+        declared.filter((c) => c.status === 'deprecated').map((c) => [c.key, c.replacedBy]),
+      );
+    }
   }
 
   const targets = paths.length ? paths : ['.'];
-  const results = targets.map((target) =>
-    validateRepo(resolve(io.cwd, target), knownComponents ? { knownComponents } : {}),
-  );
+  const results = targets.map((target) => validateRepo(resolve(io.cwd, target), options));
 
   const color = !values.plain && io.isTTY && !io.env.NO_COLOR && format !== 'json';
   if (format === 'json') {

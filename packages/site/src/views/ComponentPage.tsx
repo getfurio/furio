@@ -2,7 +2,15 @@ import { AlertTriangle, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react
 import { useEffect } from 'react';
 import { BoardView } from '../graph/BoardView';
 import { ComponentIcon } from '../graph/parts';
-import { codeUrl, impact, STATUS_LABEL, TYPE_LABEL, type ModelRelation, type Site } from '../model';
+import {
+  codeUrl,
+  impact,
+  isDeprecatedRelation,
+  STATUS_LABEL,
+  TYPE_LABEL,
+  type ModelRelation,
+  type Site,
+} from '../model';
 import { backTarget, go, href } from '../router';
 import { mapWith, type Scope } from '../scope';
 import { PeekLink } from '../ui/Peek';
@@ -168,6 +176,16 @@ export function ComponentPage({
             <dd className="missing">{STATUS_LABEL[component.status]}</dd>
           </div>
         )}
+        {component.replacedBy && (
+          <div>
+            <dt>Replaced by</dt>
+            <dd>
+              <PeekLink className="mono" componentKey={component.replacedBy}>
+                {component.replacedBy}
+              </PeekLink>
+            </dd>
+          </div>
+        )}
       </dl>
 
       <div className="neighborhood" aria-label="Connections of this component">
@@ -276,6 +294,7 @@ function PinRow({
       <td>
         <span className={`layer ${relation.type}`}>{relation.type.replace(/_/g, ' ')}</span>
         {relation.critical === false && <span className="non-critical-tag">Non-critical</span>}
+        {isDeprecatedRelation(site, relation) && <span className="deprecated-tag">Deprecated</span>}
       </td>
       <td>
         <PeekLink className="mono" componentKey={other}>

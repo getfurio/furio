@@ -1,5 +1,10 @@
 # Furio
 
+[![CI](https://github.com/getfurio/furio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/getfurio/furio/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@getfurio/cli)](https://www.npmjs.com/package/@getfurio/cli)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Furio%20Architecture%20Map-blue?logo=github)](https://github.com/marketplace/actions/furio-architecture-map)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **Furio likes things tidy.** Your architecture map, kept in your repos and checked like code.
 
 Every repo describes the part of the architecture it owns in a `.architecture/` folder. Furio

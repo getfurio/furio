@@ -35,7 +35,9 @@ export const RELATION_TYPES = [
   'depends_on',
 ] as const;
 
-export const COMPONENT_STATUSES = ['active', 'deprecated', 'dev-only'] as const;
+export const COMPONENT_STATUSES = ['active', 'maintenance', 'deprecated', 'dev-only'] as const;
+
+export const RELATION_STATUSES = ['active', 'deprecated'] as const;
 
 /**
  * Technologies Furio knows by name, for "Did you mean" on `tech`. Any lowercase value is valid:
@@ -68,6 +70,7 @@ export const DIAGRAM_EXTENSIONS = ['.mmd', '.md'] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 export type RelationType = (typeof RELATION_TYPES)[number];
 export type ComponentStatus = (typeof COMPONENT_STATUSES)[number];
+export type RelationStatus = (typeof RELATION_STATUSES)[number];
 
 /** kebab-case: lowercase letters and digits, single dashes between them. */
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -135,7 +138,11 @@ export const ComponentSchema = z
     }),
     status: z.enum(COMPONENT_STATUSES).optional().meta({
       description:
-        'active (the default), deprecated (still running, on its way out) or dev-only (CI, local tools).',
+        'active (the default), maintenance (supported, but takes no new consumers), deprecated (still running, on its way out) or dev-only (CI, local tools).',
+    }),
+    replaced_by: ref.optional().meta({
+      description:
+        'What to use instead, for a component in maintenance or deprecated: a component id, or "project/component".',
     }),
     tags: z.array(z.string().min(1)).optional(),
     links: z
@@ -157,6 +164,10 @@ export const RelationSchema = z
     critical: z.boolean().optional().meta({
       description:
         'False when "from" keeps working if "to" goes down (telemetry, logs, audit, analytics): the map draws the relation, the impact analysis does not follow it. Defaults to true.',
+    }),
+    status: z.enum(RELATION_STATUSES).optional().meta({
+      description:
+        'active (the default) or deprecated: "from" is moving away from "to" (a migration in progress), even if "to" stays for others.',
     }),
   })
   .meta({ title: 'Relation' });

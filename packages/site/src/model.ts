@@ -151,9 +151,20 @@ export const TYPE_PLURAL: Record<string, string> = {
 };
 
 export const STATUS_LABEL: Record<string, string> = {
+  maintenance: 'Maintenance',
   deprecated: 'Deprecated',
   'dev-only': 'Dev only',
 };
+
+/** Drawn quieter: on their way out, or only for development. Maintenance is still in service. */
+export function isRetired(c: ModelComponent): boolean {
+  return c.status === 'deprecated' || c.status === 'dev-only';
+}
+
+/** A relation on its way out: marked deprecated, or to a deprecated component. */
+export function isDeprecatedRelation(site: Site, r: ModelRelation): boolean {
+  return r.status === 'deprecated' || site.byKey.get(r.to)?.status === 'deprecated';
+}
 
 /** A link to the component's folder on its repo's host, when both are known. */
 export function codeUrl(site: Site, c: ModelComponent): string | undefined {

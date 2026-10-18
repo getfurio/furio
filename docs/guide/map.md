@@ -53,8 +53,9 @@ and host `vps-1`.
 ### Is anything broken or missing?
 
 **Health** lists what needs a look: repos whose manifest is invalid, repos without a manifest,
-references that no repo declares, components without an owner, deprecated and dev-only
-components, and every issue Furio found.
+references that no repo declares, components without an owner, components in maintenance,
+deprecated or dev-only (with what replaces them and who still uses them), and every issue Furio
+found.
 [The demo's health](https://furio-demo.github.io/catalog/#/health).
 
 ### How does it work, step by step?
@@ -124,8 +125,11 @@ relation is an edge coloured by kind:
 - A **dotted** edge, in any colour, is a non-critical relation
   ([`critical: false`](manifest.md#telemetry-logs-and-analytics)): the part at its start keeps
   working without the one at its end.
+- A **faded** edge is on its way out: the relation has `status: deprecated`, or it goes to a
+  deprecated component ([a service on its way out](manifest.md#a-service-on-its-way-out)).
 - A **dashed** card marked **Not declared** is referenced by some repo but declared by none.
-- A card drawn quieter, labelled **Deprecated** or **Dev only**, has that `status`.
+- A card drawn quieter, labelled **Deprecated** or **Dev only**, has that `status`. A
+  **Maintenance** label marks a part still in service that takes no new consumers.
 - Cards show the `tech` next to the type; a domain shows its name.
 
 **Appearance**, at the bottom of the sidebar, sets the theme (system, light, dark) and the

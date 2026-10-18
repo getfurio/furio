@@ -48,10 +48,18 @@ export function buildModel(sources: RepoSource[], options: BuildOptions): BuildR
 
   // Pass 1: what does each repo declare? Needed to check references across repos.
   const known = new Set<string>();
+  const deprecated = new Map<string, string | undefined>();
   for (const source of ordered) {
     const manifest = validateRepo(source.dir).manifest;
-    for (const component of manifest?.components ?? [])
-      known.add(`${manifest!.project}/${component.id}`);
+    for (const component of manifest?.components ?? []) {
+      const key = `${manifest!.project}/${component.id}`;
+      if (known.has(key)) continue;
+      known.add(key);
+      if (component.status === 'deprecated') {
+        const next = component.replaced_by;
+        deprecated.set(key, next === undefined ? undefined : qualify(next, manifest!.project));
+      }
+    }
   }
 
   // Pass 2: validate again against the whole workspace.
@@ -63,7 +71,10 @@ export function buildModel(sources: RepoSource[], options: BuildOptions): BuildR
   const diagrams: ModelDiagram[] = [];
 
   for (const source of ordered) {
-    const result = validateRepo(source.dir, { knownComponents: known });
+    const result = validateRepo(source.dir, {
+      knownComponents: known,
+      deprecatedComponents: deprecated,
+    });
     const extra: Diagnostic[] = [];
     const manifest = result.valid ? result.manifest : undefined;
 
@@ -121,7 +132,11 @@ export function buildModel(sources: RepoSource[], options: BuildOptions): BuildR
   // Ghosts: referenced but declared by no valid repo.
   const declared = [...components.values()].sort((a, b) => a.key.localeCompare(b.key));
   const ghosts = new Map<string, ModelComponent>();
-  const referenced = [...relations.map((r) => r.to), ...diagrams.flatMap((d) => d.components)];
+  const referenced = [
+    ...relations.map((r) => r.to),
+    ...diagrams.flatMap((d) => d.components),
+    ...declared.flatMap((c) => (c.replacedBy ? [c.replacedBy] : [])),
+  ];
   for (const key of referenced) {
     if (components.has(key) || ghosts.has(key)) continue;
     const [project, id] = key.split('/') as [string, string];
@@ -175,6 +190,7 @@ function addManifest(
       ...(c.path ? { path: c.path.replace(/\/+$/, '') } : {}),
       ...(c.host ? { host: c.host } : {}),
       ...(c.status && c.status !== 'active' ? { status: c.status } : {}),
+      ...(c.replaced_by ? { replacedBy: qualify(c.replaced_by, project) } : {}),
       tags: c.tags ?? [],
       links: c.links ?? {},
       repo: source.id,
@@ -188,6 +204,7 @@ function addManifest(
       ...(r.protocol ? { protocol: r.protocol } : {}),
       ...(r.description ? { description: r.description } : {}),
       ...(r.critical === false ? { critical: false as const } : {}),
+      ...(r.status === 'deprecated' ? { status: r.status } : {}),
       repo: source.id,
     });
   }

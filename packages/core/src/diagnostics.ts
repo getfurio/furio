@@ -20,6 +20,8 @@ export type DiagnosticCode =
   | 'path-not-found'
   | 'self-relation'
   | 'duplicate-relation'
+  | 'relation-to-deprecated'
+  | 'replaced-by-unused'
   | 'missing-owner'
   | 'no-components'
   | 'diagram-not-found'

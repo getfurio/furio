@@ -278,12 +278,49 @@ dependency that is rarely used, or that has a fallback nobody has tried.
 components:
   - id: legacy-search
     type: service
-    status: deprecated
-    description: Replaced by the search in acme/app; still called by old app versions
+    status: deprecated # still running, on its way out
+    replaced_by: search # what to use instead
+    description: Still called by old app versions
+  - id: search
+    type: service
+  - id: mailer
+    type: service
+    status: maintenance # supported, but takes no new consumers
 ```
 
-The map draws it quieter and the health page lists it. Before you switch it off, its blast
-radius shows who still calls it. `status: dev-only` works the same way for CI and local tools.
+The map draws `legacy-search` quieter, with every relation to it faded, and the panel links to
+`search`. Before you switch it off, its blast radius shows who still calls it. `mailer` keeps its
+look and its consumers, with a **Maintenance** label: it works, but nothing new should start
+using it. `status: dev-only` (CI, local tools) is drawn quieter too.
+
+A relation to a deprecated component gets a warning, with the replacement in the hint:
+
+```
+warning .architecture/architecture.yaml:21:9
+  relations[0].to is "legacy-search", which is deprecated.
+  → Use "search" instead (its replaced_by), or set status: deprecated on this relation while the migration runs.
+  [relation-to-deprecated]
+```
+
+While the migration runs, say so on the relation. The warning goes away, and the edge stays on
+the map, faded, until the code stops calling `legacy-search` and you remove it:
+
+```yaml
+relations:
+  - from: web
+    to: legacy-search
+    type: calls
+    status: deprecated # web is moving to search
+```
+
+- A relation can be deprecated while the other end stays: a service moving off a queue that
+  others keep using.
+- Relations that start from a deprecated component get no warning: they leave with it.
+- With `--model` ([What Furio checks](#what-furio-checks)) the warning also covers deprecated
+  components of other repos. With `--strict` it fails the check, so nobody adds a dependency on a
+  deprecated component without saying it is temporary.
+- The health page lists the components in maintenance or deprecated, with what replaces them and
+  who still uses them: the to-do list of the migration.
 
 ## Every field
 
@@ -304,7 +341,8 @@ components:
     tech: node # the concrete technology: postgres, redis, nginx, tauri...
     path: apps/shop-api # its folder in this repo; the map links to the code
     host: aws.eu-west-1 # where it runs: a machine, a cluster, a region
-    status: active # active (default), deprecated or dev-only
+    status: active # active (default), maintenance, deprecated or dev-only
+    replaced_by: checkout-api # with maintenance or deprecated: what to use instead
     tags: [critical, pci]
     links: # http or https only
       docs: https://example.com/shop-api
@@ -317,6 +355,7 @@ relations:
     protocol: sqs
     description: One event per paid order
     critical: true # true (default); false when "from" works without "to"
+    status: active # active (default), or deprecated while "from" moves off "to"
 
 diagrams:
   - file: diagrams/checkout-flow.mmd # required, relative to .architecture/
@@ -370,8 +409,9 @@ serves edge` and `edge serves app` put the domain in the blast radius of the app
 - `host` is the place it runs (`vps-1`, `customer-machine`). The map filters by host.
 - `path` is its folder in the repo. In a checkout, `furio validate` warns when the folder does
   not exist; the map links it to the code on GitHub.
-- `status: deprecated` (still running, on its way out) and `status: dev-only` (CI, local tools)
-  keep a component on the map, drawn quieter, and the health page lists them.
+- `status` says whether a component is in service (`active`), takes no new consumers
+  (`maintenance`), is on its way out (`deprecated`) or only for CI and local tools (`dev-only`);
+  `replaced_by` says what to use instead. See [a service on its way out](#a-service-on-its-way-out).
 
 ## References
 
@@ -475,6 +515,8 @@ Add `--strict` to fail on warnings too. Every message:
 | `path-not-found`               | warning  | A `path` that does not exist in the checkout                          |
 | `self-relation`                | warning  | A component related to itself                                         |
 | `duplicate-relation`           | warning  | The same relation twice                                               |
+| `relation-to-deprecated`       | warning  | A relation to a deprecated component, not marked deprecated itself    |
+| `replaced-by-unused`           | warning  | `replaced_by` on a component that is active or dev-only               |
 | `missing-owner`                | warning  | Components without an owner                                           |
 | `no-components`                | warning  | The manifest declares nothing                                         |
 | `diagram-not-found`            | error    | A listed diagram file does not exist                                  |
@@ -490,4 +532,5 @@ Add `--strict` to fail on warnings too. Every message:
 `version: 1` is the only version of the manifest. New fields are optional, so a manifest that
 was valid stays valid. An older Furio, though, rejects a field it does not know yet: update the
 CLI and the Action before you use a new one. Every field on this page works with Furio
-0.4.0 or later; the [changelog](../../CHANGELOG.md) says what came when.
+0.4.0 or later, except `status: maintenance`, `replaced_by` and `status` on a relation, which
+need a Furio newer than 0.6.4; the [changelog](../../CHANGELOG.md) says what came when.

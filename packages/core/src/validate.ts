@@ -43,6 +43,12 @@ export interface ValidateOptions {
    */
   knownComponents?: Iterable<string>;
   /**
+   * Deprecated components of the workspace, from "project/component" to its `replaced_by`
+   * ("project/component", or undefined). With it, relations to deprecated components of other
+   * repos are reported too; those declared in this manifest always are.
+   */
+  deprecatedComponents?: ReadonlyMap<string, string | undefined>;
+  /**
    * Check that each component's `path` exists in the repo. By default only when the repo is a
    * real checkout (it has more than its `.architecture/` folder), not when only the manifest was
    * received, as on Furio Cloud.
@@ -195,6 +201,7 @@ class ManifestCheck {
   private data: unknown;
   private readonly known: Set<string>;
   private readonly hasKnown: boolean;
+  private readonly deprecated: ReadonlyMap<string, string | undefined>;
   private readonly checkPaths: boolean;
   private closed = false;
   private suggestions = 0;
@@ -208,6 +215,7 @@ class ManifestCheck {
   ) {
     this.known = new Set(options.knownComponents ?? []);
     this.hasKnown = options.knownComponents !== undefined;
+    this.deprecated = options.deprecatedComponents ?? new Map();
     this.checkPaths = options.checkPaths ?? isCheckout(dirname(architectureDir));
   }
 
@@ -474,6 +482,27 @@ class ManifestCheck {
       this.checkComponentFields(component, index);
     });
 
+    // Once every local id is known. Deprecated components: this manifest is the latest word on
+    // its own, the workspace on the others.
+    const deprecated = new Map(this.deprecated);
+    manifest.components.forEach((component, index) => {
+      const next = typeof component.replaced_by === 'string' ? component.replaced_by : undefined;
+      if (next !== undefined) {
+        this.checkReference(
+          next,
+          project,
+          localIds,
+          ['components', index, 'replaced_by'],
+          `components[${index}].replaced_by`,
+        );
+      }
+      if (localIds.get(component.id) !== index) return;
+      const key = `${project}/${component.id}`;
+      if (component.status === 'deprecated')
+        deprecated.set(key, next === undefined ? undefined : qualify(next, project));
+      else deprecated.delete(key);
+    });
+
     if (!manifest.owner) {
       const ownerless = manifest.components
         .map((component, index) => ({ component, index }))
@@ -524,6 +553,7 @@ class ManifestCheck {
           at('to'),
         );
       }
+      this.checkDeprecatedTarget(relation, index, project, deprecated);
       const key = `${relation.from} ${relation.type} ${target}`;
       const firstIndex = seenRelations.get(key);
       if (firstIndex !== undefined) {
@@ -542,7 +572,37 @@ class ManifestCheck {
     this.checkDiagrams(manifest, project, localIds);
   }
 
-  /** tech near-misses and paths that do not exist: warnings, the manifest is still valid. */
+  /**
+   * A relation to a deprecated component is a dependency nobody should add: reported unless the
+   * relation says it is on its way out too, or starts from a component that is.
+   */
+  private checkDeprecatedTarget(
+    relation: Manifest['relations'][number],
+    index: number,
+    project: string,
+    deprecated: ReadonlyMap<string, string | undefined>,
+  ) {
+    const target = qualify(relation.to, project);
+    if (!deprecated.has(target) || relation.status === 'deprecated') return;
+    if (deprecated.has(`${project}/${relation.from}`)) return;
+    const next = deprecated.get(target);
+    const local = (key: string) =>
+      key.startsWith(`${project}/`) ? key.slice(project.length + 1) : key;
+    this.addAt(
+      'warning',
+      'relation-to-deprecated',
+      `relations[${index}].to is "${relation.to}", which is deprecated.`,
+      ['relations', index, 'to'],
+      next
+        ? `Use "${local(next)}" instead (its replaced_by), or set status: deprecated on this relation while the migration runs.`
+        : 'Move off it, or set status: deprecated on this relation while the migration runs.',
+    );
+  }
+
+  /**
+   * tech near-misses, paths that do not exist, replaced_by on a component that is not on its way
+   * out: warnings, the manifest is still valid.
+   */
   private checkComponentFields(component: Manifest['components'][number], index: number) {
     const tech = component.tech;
     if (typeof tech === 'string' && !KNOWN_TECH.includes(tech)) {
@@ -555,6 +615,16 @@ class ManifestCheck {
           ['components', index, 'tech'],
           `Did you mean "${suggestion}"? Any lowercase name works; this only catches typos.`,
         );
+    }
+    const status = component.status ?? 'active';
+    if (component.replaced_by !== undefined && (status === 'active' || status === 'dev-only')) {
+      this.addAt(
+        'warning',
+        'replaced-by-unused',
+        `components[${index}].replaced_by is set, but the component is ${status}.`,
+        ['components', index, 'replaced_by'],
+        'replaced_by only applies to a component in maintenance or deprecated: set its status, or remove replaced_by.',
+      );
     }
     const path = component.path;
     if (this.checkPaths && typeof path === 'string') {
