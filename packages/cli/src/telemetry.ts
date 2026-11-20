@@ -5,9 +5,9 @@
  * this machine. Never a repo, a path, a name or anything read from a manifest.
  *
  * The first build on a machine says so and sends nothing. In CI, where nothing is remembered
- * between runs, every build says so on one line, and no id is made. In GitHub Actions the event
- * says instead, coarsely, which project builds (`projectFingerprint`): builds alone would not
- * tell one project that builds every hour from many that build once.
+ * between runs, every build says so on one line, and no id is made. In GitHub Actions, on
+ * github.com, the event says instead, coarsely, which project builds (`projectFingerprint`):
+ * builds alone would not tell one project that builds every hour from many that build once.
  *
  * Events go to our own analytics server (a self-hosted Umami, the one that counts the visits to
  * getfurio.com), shaped the way it counts best: a page view whose path is the command, where it
@@ -142,14 +142,18 @@ function writeState(file: string, state: State): string | undefined {
   }
 }
 
-/** How many values a project fingerprint can take: 20 bits. */
-export const PROJECT_FINGERPRINTS = 2 ** 20;
+/** How many values a project fingerprint can take: 16 bits. */
+export const PROJECT_FINGERPRINTS = 2 ** 16;
 
 /**
- * Which project builds, in GitHub Actions: enough to count projects, too little to point at one.
- * A hash of the number GitHub gives the repository the workflow runs in, cut to one of 1,048,576
- * values: on github.com more than a thousand repository numbers share each of them, and none can
- * be told from the others. Never the owner's number, which would name an organization.
+ * Which project builds, in GitHub Actions on github.com: enough to count projects, too little to
+ * lead back to one. A hash of the number GitHub gives the repository the workflow runs in, cut to
+ * one of 65,536 values: more than twenty thousand repository numbers share each of them.
+ *
+ * It is not a secret: whoever knows the number of a repository can compute its value. So it is
+ * made only where there is a crowd to share it with: not on a GitHub Enterprise server, whose few
+ * repositories it would tell apart. And it never reads the owner's number, which names an
+ * organization, nor the name of the repository.
  *
  * Not the first commit, as other tools do: a build workflow often checks nothing out, and in a
  * shallow clone the first commit is the last one.
@@ -158,9 +162,10 @@ export function projectFingerprint(env: Record<string, string | undefined>): str
   const repository = env.GITHUB_REPOSITORY_ID ?? '';
   if (env.GITHUB_ACTIONS !== 'true' || !/^\d{1,20}$/.test(repository)) return undefined;
   const server = (env.GITHUB_SERVER_URL || 'https://github.com').toLowerCase().replace(/\/+$/, '');
-  const hash = createHash('sha256').update(`furio project\n${server}\n${repository}`).digest();
+  if (server !== 'https://github.com') return undefined;
+  const hash = createHash('sha256').update(`furio project\n${repository}`).digest();
   // Digits only, like the id: the user agent carries it.
-  return String(hash.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(7, '0');
+  return String(hash.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(5, '0');
 }
 
 const OS: Record<string, string> = { darwin: 'Mac OS', linux: 'Linux', win32: 'Windows' };
@@ -185,7 +190,7 @@ export function buildEvent(build: {
   ci: boolean;
   /** Of the machine: outside CI. */
   id?: string;
-  /** Of the project (`projectFingerprint`): in GitHub Actions. */
+  /** Of the project (`projectFingerprint`): in GitHub Actions, on github.com. */
   project?: string;
 }): TelemetryEvent {
   const who = build.id ?? (build.project ? `ci ${build.project}` : 'ci');
@@ -222,8 +227,8 @@ function firstNotice(file: string): string {
 function ciNotice(project: string | undefined): string {
   const sends = project
     ? 'the Furio version, the operating system, that it ran in CI and a coarse fingerprint of this ' +
-      'repository: one of 1,048,576 values, not enough to tell it from a thousand others. No name, ' +
-      'no path, no id.'
+      'repository: one of 65,536 values, which twenty thousand others share. No name, no path, ' +
+      'no id.'
     : 'the Furio version, the operating system and that it ran in CI. Nothing about your repos, ' +
       'and no id.';
   return (

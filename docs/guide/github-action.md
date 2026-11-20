@@ -633,13 +633,16 @@ Nothing else is in it: no name, no path, nothing read from a manifest. `init`, `
   Windows). Builds are counted from the second one. In CI nothing is remembered between runs: every
   build prints the note on one line of its log, and is counted without an id.
 - **In GitHub Actions it says, coarsely, which project builds.** Builds alone cannot tell one
-  project that builds every hour from many that build once. So there the user agent reads
-  `Furio (linux; ci 0119903)`: the number is a fingerprint of the repository the workflow runs in,
-  a hash of the number GitHub gives it, cut to one of 1,048,576 values. GitHub has handed out
-  more than a billion repository numbers, so over a thousand of them give the same value: enough
-  to count projects, too little to point at yours. It is never the name of the repository, and
-  nothing of its owner. For a public repository, whose workflows anyone can read, that it builds
-  with Furio is public anyway.
+  project that builds every hour from many that build once. So on github.com the user agent
+  reads `Furio (linux; ci 08568)`: the number is a fingerprint of the repository the workflow
+  runs in, a hash of the number GitHub gives it, cut to one of 65,536 values. GitHub has handed
+  out more than 1.4 billion repository numbers, so over twenty thousand of them give the same
+  value: enough to count projects, too little to lead back to yours. It is not a secret either:
+  whoever knows the number of a repository can compute its value, and we could look for it among
+  the values we received. For a public repository, whose workflows anyone can read, that it
+  builds with Furio is public anyway. The name of the repository and its owner are never read.
+  On a GitHub Enterprise server, where repositories are too few to hide among, there is no
+  fingerprint: builds are counted like on any other CI.
 - **Your address is not kept.** Like any request, the event reaches our server from your IP
   address. Because the event names `127.0.0.1`, the analytics server works with that one instead:
   it stores nothing of yours and looks no place up.
