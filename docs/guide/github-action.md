@@ -542,13 +542,14 @@ its log says why.
 
 ### Commands
 
-| Command                        | What it does                                                          |
-| ------------------------------ | --------------------------------------------------------------------- |
-| `furio init [path]`            | Starts a manifest and teaches coding agents to keep it updated        |
-| `furio validate [path...]`     | Checks the `.architecture/` manifest of one or more repos             |
-| `furio build [path...]`        | Merges the manifests of many repos into one `model.json`              |
-| `furio build --github <owner>` | The same, collecting the manifests from a GitHub organization or user |
-| `furio upload [path]`          | Validates, then sends the `.architecture/` folder to Furio Cloud      |
+| Command                        | What it does                                                           |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `furio init [path]`            | Starts a manifest and teaches coding agents to keep it updated         |
+| `furio validate [path...]`     | Checks the `.architecture/` manifest of one or more repos              |
+| `furio build [path...]`        | Merges the manifests of many repos into one `model.json`               |
+| `furio build --github <owner>` | The same, collecting the manifests from a GitHub organization or user  |
+| `furio upload [path]`          | Validates, then sends the `.architecture/` folder to Furio Cloud       |
+| `furio telemetry`              | Shows what a build sends to be counted; `enable` or `disable` after it |
 
 `[path]` is a repo root, its `.architecture/` folder or the manifest file. The default is the
 current directory.
@@ -588,9 +589,68 @@ current directory.
 | `GITHUB_REPOSITORY`, `GITHUB_SHA` | `upload`         | The defaults of `--repo` and `--commit`                                 |
 | `GITHUB_ACTIONS`                  | `validate`       | `true` makes `github` the default format                                |
 | `NO_COLOR`                        | every command    | Any value turns colors off                                              |
+| `FURIO_TELEMETRY`, `DO_NOT_TRACK` | `build`          | `FURIO_TELEMETRY=0` or `DO_NOT_TRACK=1`: the build is not counted       |
+| `FURIO_TELEMETRY_DEBUG`           | `build`          | `1` prints the [telemetry](#telemetry) event and sends nothing          |
 
 Tokens come from the environment only. There is no flag for them: a token on the command line
 ends up in the shell history and in the list of processes.
+
+### Telemetry
+
+Furio counts builds, to know whether it is used and on what. Each `furio build`, from the CLI or
+from the Action, sends one anonymous event to `stats.getfurio.com`, our own analytics server in
+the EU. This is all of it:
+
+```json
+{
+  "type": "event",
+  "payload": {
+    "website": "8ce19b1b-caab-4b82-8279-b65495c42c11",
+    "hostname": "cli.getfurio.com",
+    "url": "/build/local/0.7.0",
+    "os": "Linux",
+    "id": "0123456789012345678901234",
+    "userAgent": "Furio (linux; 0123456789012345678901234)",
+    "ip": "127.0.0.1"
+  }
+}
+```
+
+| Field                 | What it says                                                                |
+| --------------------- | --------------------------------------------------------------------------- |
+| `url`                 | The command, `local` or `ci`, and the Furio version                         |
+| `os`                  | The operating system: `Linux`, `Mac OS` or `Windows`                        |
+| `id`                  | A random number made on your machine. In CI there is none                   |
+| `userAgent`           | The system and the id again: it is how the server tells two machines apart  |
+| `ip`                  | Always `127.0.0.1`: the server uses it in place of your address (see below) |
+| `website`, `hostname` | Always the same: where the server files the events of the CLI               |
+
+Nothing about your repos is in it: no name, no path, nothing read from a manifest. `init`,
+`validate` and `upload` send nothing.
+
+- **The first build says so and sends nothing.** It prints a note, makes the id and keeps it in
+  `~/.config/furio/telemetry.json` (`$XDG_CONFIG_HOME/furio` if set, `%APPDATA%\furio` on
+  Windows). Builds are counted from the second one. In CI nothing is remembered between runs: every
+  build prints the note on one line of its log, and is counted without an id.
+- **Your address is not kept.** Like any request, the event reaches our server from your IP
+  address. Because the event names `127.0.0.1`, the analytics server works with that one instead:
+  it stores nothing of yours and looks no place up.
+- **A build never waits for it.** The event leaves from a process of its own, with a 5 second
+  limit; without a network, nothing happens.
+- **See it.** `furio telemetry` says whether builds are counted and prints the event of this
+  machine. With `FURIO_TELEMETRY_DEBUG=1`, a build prints its event and sends nothing.
+- **Turn it off.** `furio telemetry disable` on a machine (`furio telemetry enable` to undo), or
+  `FURIO_TELEMETRY=0` in the environment; `DO_NOT_TRACK=1` works too. In a workflow:
+
+```yaml
+- uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+  with:
+    command: build
+  env:
+    FURIO_TELEMETRY: 0
+```
+
+Furio run from its sources counts nothing. The [map](map.md) sends nothing either, to anyone.
 
 ### Exit codes
 

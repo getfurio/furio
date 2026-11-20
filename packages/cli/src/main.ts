@@ -33,8 +33,11 @@ import {
 export { commandData } from './report.js';
 import { githubRepoOf } from './git.js';
 import { initRepo } from './init.js';
+import { countBuild, TelemetryError, telemetryCommand, type TelemetryIo } from './telemetry.js';
 import { DEFAULT_FURIO_URL, upload } from './upload.js';
 import { VERSION } from './version.js';
+
+export { nodeTelemetry, type TelemetryIo } from './telemetry.js';
 
 export interface Io {
   stdout: (text: string) => void;
@@ -43,9 +46,11 @@ export interface Io {
   env: Record<string, string | undefined>;
   isTTY: boolean;
   fetch?: typeof fetch;
+  /** Counts builds (telemetry.ts). Left out, nothing is counted: tests, and runs from source. */
+  telemetry?: TelemetryIo;
 }
 
-const COMMANDS = ['init', 'validate', 'build', 'upload', 'help', 'version'];
+const COMMANDS = ['init', 'validate', 'build', 'upload', 'telemetry', 'help', 'version'];
 
 const HELP = `furio ${VERSION}: Furio likes things tidy.
 
@@ -56,6 +61,7 @@ Usage
   furio build --github <owner>      Same, collecting the manifests from a GitHub org or user
   furio upload [path]               Validate, then send the .architecture/ folder to Furio Cloud
   furio upload --dry-run [path]     Validate, check the token, list what would be sent
+  furio telemetry [enable|disable]  Show what a build sends to be counted; turn it on or off
 
 Validate options
   --model <file|url>             A published model.json: checks references to other repos
@@ -91,6 +97,11 @@ Common options
   --plain                        No personality, no colors
   -h, --help                     Show this help
   -v, --version                  Show the version
+
+Telemetry
+  Each build is counted, anonymously: the Furio version, the operating system, whether it ran
+  in CI and a random id. Nothing about your repos. FURIO_TELEMETRY=0 or DO_NOT_TRACK=1 turns it
+  off, and so does "furio telemetry disable"; "furio telemetry" shows the event.
 
 GitHub Action
   uses: getfurio/furio@<commit>  Validates the manifest on every pull request and push
@@ -150,8 +161,13 @@ export async function run(argv: string[], io: Io): Promise<number> {
     if (command === 'validate') return await validate(rest, values, io);
     if (command === 'build') return await build(rest, values, io);
     if (command === 'upload') return await uploadCommand(rest, values, io);
+    if (command === 'telemetry') return telemetry(rest, io);
   } catch (error) {
-    if (error instanceof GitHubError || error instanceof UsageError) {
+    if (
+      error instanceof GitHubError ||
+      error instanceof UsageError ||
+      error instanceof TelemetryError
+    ) {
       io.stderr(`${error.message}\n`);
       return 2;
     }
@@ -290,6 +306,7 @@ async function build(paths: string[], values: Values, io: Io): Promise<number> {
     io.stdout(
       formatBuild(model, { plain: values.plain, color, cwd: io.cwd, output: file, unlisted }),
     );
+    countBuild(io);
     const invalid = model.repos.some((r) => r.status === 'invalid');
     return values.strict && invalid ? 1 : 0;
   } finally {
@@ -348,6 +365,12 @@ function furioUrl(value: string): string {
   throw new UsageError(
     `--url (or FURIO_URL) must be an https address, got "${value}": the upload token would travel unencrypted. Plain http is accepted for localhost only.`,
   );
+}
+
+function telemetry(args: string[], io: Io): number {
+  if (args.length > 1) throw new UsageError('furio telemetry takes one action: enable or disable.');
+  io.stdout(telemetryCommand(args[0], io));
+  return 0;
 }
 
 function init(paths: string[], values: Values, io: Io): number {

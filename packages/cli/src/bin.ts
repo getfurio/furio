@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { run } from './main.js';
+import { nodeTelemetry, run } from './main.js';
 
 // `furio validate | head` closes stdout early: that is not an error.
 process.stdout.on('error', (error: NodeJS.ErrnoException) => {
@@ -13,4 +13,6 @@ process.exitCode = await run(process.argv.slice(2), {
   cwd: process.cwd(),
   env: process.env,
   isTTY: Boolean(process.stdout.isTTY),
+  // Builds are counted by the published bundle only: never when this file runs from the sources.
+  ...(import.meta.url.endsWith('.js') ? { telemetry: nodeTelemetry(process.env) } : {}),
 });
