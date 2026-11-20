@@ -597,9 +597,9 @@ ends up in the shell history and in the list of processes.
 
 ### Telemetry
 
-Furio counts builds, to know whether it is used and on what. Each `furio build`, from the CLI or
-from the Action, sends one anonymous event to `stats.getfurio.com`, our own analytics server in
-the EU. This is all of it:
+From version 0.7.0, Furio counts builds, to know whether it is used and on what. Each
+`furio build`, from the CLI or from the Action, sends one anonymous event to
+`stats.getfurio.com`, our own analytics server in the EU. This is all of it:
 
 ```json
 {

@@ -533,4 +533,4 @@ Add `--strict` to fail on warnings too. Every message:
 was valid stays valid. An older Furio, though, rejects a field it does not know yet: update the
 CLI and the Action before you use a new one. Every field on this page works with Furio
 0.4.0 or later, except `status: maintenance`, `replaced_by` and `status` on a relation, which
-need a Furio newer than 0.6.4; the [changelog](../../CHANGELOG.md) says what came when.
+need 0.7.0; the [changelog](../../CHANGELOG.md) says what came when.
