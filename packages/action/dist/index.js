@@ -28926,15 +28926,15 @@ function writeState(file2, state) {
     return error62.code ?? error62.message;
   }
 }
-var PROJECT_FINGERPRINTS = 2 ** 20;
+var PROJECT_FINGERPRINTS = 2 ** 16;
 function projectFingerprint(env) {
   const repository = env.GITHUB_REPOSITORY_ID ?? "";
   if (env.GITHUB_ACTIONS !== "true" || !/^\d{1,20}$/.test(repository)) return void 0;
   const server = (env.GITHUB_SERVER_URL || "https://github.com").toLowerCase().replace(/\/+$/, "");
+  if (server !== "https://github.com") return void 0;
   const hash2 = createHash("sha256").update(`furio project
-${server}
 ${repository}`).digest();
-  return String(hash2.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(7, "0");
+  return String(hash2.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(5, "0");
 }
 var OS = { darwin: "Mac OS", linux: "Linux", win32: "Windows" };
 function buildEvent(build2) {
@@ -28966,7 +28966,7 @@ function firstNotice(file2) {
 `;
 }
 function ciNotice(project) {
-  const sends = project ? "the Furio version, the operating system, that it ran in CI and a coarse fingerprint of this repository: one of 1,048,576 values, not enough to tell it from a thousand others. No name, no path, no id." : "the Furio version, the operating system and that it ran in CI. Nothing about your repos, and no id.";
+  const sends = project ? "the Furio version, the operating system, that it ran in CI and a coarse fingerprint of this repository: one of 65,536 values, which twenty thousand others share. No name, no path, no id." : "the Furio version, the operating system and that it ran in CI. Nothing about your repos, and no id.";
   return `note: Furio counts builds, anonymously: this one sends ${sends} FURIO_TELEMETRY=0 turns it off. Details: ${TELEMETRY_DOCS}
 `;
 }
