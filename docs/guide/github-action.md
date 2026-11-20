@@ -123,7 +123,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-      - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+      - uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
 ```
 
 - Put your **default branch** in the `push` trigger: `main` in the example, or `dev`, `master`,
@@ -165,7 +165,7 @@ cannot tell a typo, such as `platform/user-api`, from a component that exists el
 check the `model.json` of the published map and it can:
 
 ```yaml
-- uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+- uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
   with:
     model: https://<your-org>.github.io/catalog/model.json
 ```
@@ -245,7 +245,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+      - uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
         with:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
@@ -432,7 +432,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+      - uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
         with:
           command: build
           token: ${{ secrets.FURIO_TOKEN }}
@@ -493,7 +493,7 @@ its path.
 
 ```yaml
 - run: aws s3 cp "s3://<bucket>/map/model.json" model.json
-- uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+- uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
   with:
     model: model.json
 ```
@@ -654,7 +654,7 @@ Nothing else is in it: no name, no path, nothing read from a manifest. `init`, `
   `FURIO_TELEMETRY=0` in the environment; `DO_NOT_TRACK=1` works too. In a workflow:
 
 ```yaml
-- uses: getfurio/furio@59b9f79ecb9dc845979c6720acf4898b495fead3 # v0.6.4
+- uses: getfurio/furio@7cbe9c115a0e6c8d3e85785c2191d3097dd0d478 # v0.7.0
   with:
     command: build
   env:
