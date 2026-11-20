@@ -34,7 +34,8 @@
   "devDependencies": {
     "@getfurio/core": "workspace:*",
     "@getfurio/schema": "workspace:*",
-    "@getfurio/site": "workspace:*"
+    "@getfurio/site": "workspace:*",
+    "isbot": "^5.2.3"
   },
   "exports": {
     ".": {
