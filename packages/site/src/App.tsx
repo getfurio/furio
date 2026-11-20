@@ -15,7 +15,7 @@ import { extensionNav, type NavLink } from './extensions';
 import { PALETTE_LABEL, PALETTES, useAppearance } from './theme';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { BoardView } from './graph/BoardView';
-import { indexModel, loadModel, revision, type Site } from './model';
+import { indexModel, loadModel, MADE_WITH_URL, madeWith, revision, type Site } from './model';
 import {
   href,
   linksIn,
@@ -226,8 +226,12 @@ function Sidebar({ site, route }: { site: Site; route: Route }) {
         })}
       </nav>
       <div className="sidebar-foot">
-        <a href="https://getfurio.com">getfurio.com</a>
         <AppearanceMenu />
+        {/* No "noreferrer", unlike the links that come from manifests: this one goes to Furio's own
+            site, which may know that a map sent the visit. Nothing is sent unless it is clicked. */}
+        <a href={MADE_WITH_URL} target="_blank" rel="noopener">
+          {madeWith(site.model)}
+        </a>
       </div>
     </aside>
   );

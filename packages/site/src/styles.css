@@ -377,7 +377,7 @@
 .appearance-menu {
   position: absolute;
   bottom: calc(100% + 8px);
-  right: 0;
+  left: 0;
   z-index: 40;
   display: grid;
   gap: 8px;
@@ -757,18 +757,28 @@ a:hover {
   flex: none;
 }
 
+/* Appearance, and under it who made the map: each on a row of its own, both from the left edge
+   like the rest of the sidebar. */
 .sidebar-foot {
   margin-top: auto;
   padding: 10px;
   font-size: 12px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .sidebar-foot a {
+  max-width: 100%;
   color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-foot a:hover {
+  color: var(--accent-2);
 }
 
 .main {
@@ -3377,10 +3387,13 @@ a:hover {
     border: 0;
   }
 
-  /* The theme button sits in the top bar on phones: the menu opens downwards. */
+  /* The theme button sits at the right of the top bar on phones: the menu opens downwards, from
+     the button's right edge. */
   .appearance-menu {
     bottom: auto;
     top: calc(100% + 8px);
+    left: auto;
+    right: 0;
     width: 250px;
   }
 

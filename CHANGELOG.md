@@ -25,6 +25,8 @@ map, newest first. The map ships inside the CLI (`furio build --site`) and the A
   nothing; in CI every build says so in its log. `furio telemetry` shows the event,
   `furio telemetry disable`, `FURIO_TELEMETRY=0` or `DO_NOT_TRACK=1` turn it off. The guide has
   the whole event: [Telemetry](docs/guide/github-action.md#telemetry).
+- Map: the foot of the sidebar says which Furio built the map ("Made with Furio 0.7.0") and opens
+  getfurio.com in a new tab. The map itself still sends nothing to anyone.
 
 ## 0.6.4 — 2026-10-09
 
