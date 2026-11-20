@@ -100,8 +100,9 @@ Common options
 
 Telemetry
   Each build is counted, anonymously: the Furio version, the operating system, whether it ran
-  in CI and a random id. Nothing about your repos. FURIO_TELEMETRY=0 or DO_NOT_TRACK=1 turns it
-  off, and so does "furio telemetry disable"; "furio telemetry" shows the event.
+  in CI and a random id (in GitHub Actions, a coarse fingerprint of the repository instead).
+  No name, no path, nothing from a manifest. FURIO_TELEMETRY=0 or DO_NOT_TRACK=1 turns it off,
+  and so does "furio telemetry disable"; "furio telemetry" shows the event.
 
 GitHub Action
   uses: getfurio/furio@<commit>  Validates the manifest on every pull request and push
