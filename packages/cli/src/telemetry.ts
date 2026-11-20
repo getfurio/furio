@@ -5,7 +5,9 @@
  * this machine. Never a repo, a path, a name or anything read from a manifest.
  *
  * The first build on a machine says so and sends nothing. In CI, where nothing is remembered
- * between runs, every build says so on one line, and no id is made.
+ * between runs, every build says so on one line, and no id is made. In GitHub Actions the event
+ * says instead, coarsely, which project builds (`projectFingerprint`): builds alone would not
+ * tell one project that builds every hour from many that build once.
  *
  * Events go to our own analytics server (a self-hosted Umami, the one that counts the visits to
  * getfurio.com), shaped the way it counts best: a page view whose path is the command, where it
@@ -15,7 +17,7 @@
  * id.
  */
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -140,6 +142,27 @@ function writeState(file: string, state: State): string | undefined {
   }
 }
 
+/** How many values a project fingerprint can take: 20 bits. */
+export const PROJECT_FINGERPRINTS = 2 ** 20;
+
+/**
+ * Which project builds, in GitHub Actions: enough to count projects, too little to point at one.
+ * A hash of the number GitHub gives the repository the workflow runs in, cut to one of 1,048,576
+ * values: on github.com more than a thousand repository numbers share each of them, and none can
+ * be told from the others. Never the owner's number, which would name an organization.
+ *
+ * Not the first commit, as other tools do: a build workflow often checks nothing out, and in a
+ * shallow clone the first commit is the last one.
+ */
+export function projectFingerprint(env: Record<string, string | undefined>): string | undefined {
+  const repository = env.GITHUB_REPOSITORY_ID ?? '';
+  if (env.GITHUB_ACTIONS !== 'true' || !/^\d{1,20}$/.test(repository)) return undefined;
+  const server = (env.GITHUB_SERVER_URL || 'https://github.com').toLowerCase().replace(/\/+$/, '');
+  const hash = createHash('sha256').update(`furio project\n${server}\n${repository}`).digest();
+  // Digits only, like the id: the user agent carries it.
+  return String(hash.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(7, '0');
+}
+
 const OS: Record<string, string> = { darwin: 'Mac OS', linux: 'Linux', win32: 'Windows' };
 
 export interface TelemetryEvent {
@@ -160,8 +183,12 @@ export function buildEvent(build: {
   version: string;
   platform: string;
   ci: boolean;
+  /** Of the machine: outside CI. */
   id?: string;
+  /** Of the project (`projectFingerprint`): in GitHub Actions. */
+  project?: string;
 }): TelemetryEvent {
+  const who = build.id ?? (build.project ? `ci ${build.project}` : 'ci');
   return {
     type: 'event',
     payload: {
@@ -170,8 +197,9 @@ export function buildEvent(build: {
       url: `/build/${build.ci ? 'ci' : 'local'}/${build.version}`,
       os: OS[build.platform] ?? build.platform,
       ...(build.id ? { id: build.id } : {}),
-      // The server's visitors are user agents: this is how it tells two machines apart.
-      userAgent: `Furio (${build.platform}; ${build.id ?? 'ci'})`,
+      // The server's visitors are user agents: this is how it tells two machines apart, or two
+      // projects in CI.
+      userAgent: `Furio (${build.platform}; ${who})`,
       // Nobody's address, on purpose: the server uses this one, not the one the request comes from.
       ip: '127.0.0.1',
     },
@@ -191,10 +219,18 @@ function firstNotice(file: string): string {
   );
 }
 
-const CI_NOTICE =
-  'note: Furio counts builds, anonymously: this one sends the Furio version, the operating system ' +
-  'and that it ran in CI. Nothing about your repos, and no id. FURIO_TELEMETRY=0 turns it off. ' +
-  `Details: ${TELEMETRY_DOCS}\n`;
+function ciNotice(project: string | undefined): string {
+  const sends = project
+    ? 'the Furio version, the operating system, that it ran in CI and a coarse fingerprint of this ' +
+      'repository: one of 1,048,576 values, not enough to tell it from a thousand others. No name, ' +
+      'no path, no id.'
+    : 'the Furio version, the operating system and that it ran in CI. Nothing about your repos, ' +
+      'and no id.';
+  return (
+    `note: Furio counts builds, anonymously: this one sends ${sends} ` +
+    `FURIO_TELEMETRY=0 turns it off. Details: ${TELEMETRY_DOCS}\n`
+  );
+}
 
 /** Counts one build, if this machine counts. Never throws and never waits: a build comes first. */
 export function countBuild(io: TelemetryHost): void {
@@ -210,8 +246,16 @@ export function countBuild(io: TelemetryHost): void {
     const state = telemetry.file ? readState(telemetry.file) : {};
     if (state.enabled === false) return;
     if (isCI(io.env)) {
-      io.stderr(CI_NOTICE);
-      deliver(buildEvent({ version: VERSION, platform: telemetry.platform, ci: true }));
+      const project = projectFingerprint(io.env);
+      io.stderr(ciNotice(project));
+      deliver(
+        buildEvent({
+          version: VERSION,
+          platform: telemetry.platform,
+          ci: true,
+          ...(project ? { project } : {}),
+        }),
+      );
       return;
     }
     if (!telemetry.file) return;
@@ -281,13 +325,23 @@ export function telemetryCommand(action: string | undefined, io: TelemetryHost):
   if (!ci && !file)
     return `Telemetry is off: there is no home folder to keep the id and the choice in.\n${details}`;
 
+  const project = ci ? projectFingerprint(io.env) : undefined;
   const event = (id?: string) => {
-    const build = { version: VERSION, platform: telemetry.platform, ci, ...(id ? { id } : {}) };
+    const build = {
+      version: VERSION,
+      platform: telemetry.platform,
+      ci,
+      ...(id ? { id } : {}),
+      ...(project ? { project } : {}),
+    };
     return `  ${JSON.stringify(buildEvent(build))}`;
   };
   const lines = ci
     ? [
-        'Telemetry is on. This is CI: each "furio build" sends one anonymous event, without an id:',
+        'Telemetry is on. This is CI: each "furio build" sends one anonymous event, ' +
+          (project
+            ? `with a coarse fingerprint of this repository (${project}) in place of an id:`
+            : 'without an id:'),
         event(),
         'Turn it off: FURIO_TELEMETRY=0 or DO_NOT_TRACK=1.',
       ]

@@ -616,22 +616,30 @@ the EU. This is all of it:
 }
 ```
 
-| Field                 | What it says                                                                |
-| --------------------- | --------------------------------------------------------------------------- |
-| `url`                 | The command, `local` or `ci`, and the Furio version                         |
-| `os`                  | The operating system: `Linux`, `Mac OS` or `Windows`                        |
-| `id`                  | A random number made on your machine. In CI there is none                   |
-| `userAgent`           | The system and the id again: it is how the server tells two machines apart  |
-| `ip`                  | Always `127.0.0.1`: the server uses it in place of your address (see below) |
-| `website`, `hostname` | Always the same: where the server files the events of the CLI               |
+| Field                 | What it says                                                                 |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `url`                 | The command, `local` or `ci`, and the Furio version                          |
+| `os`                  | The operating system: `Linux`, `Mac OS` or `Windows`                         |
+| `id`                  | A random number made on your machine. In CI there is none                    |
+| `userAgent`           | The system, then the id again; in CI `ci`, and on GitHub the project (below) |
+| `ip`                  | Always `127.0.0.1`: the server uses it in place of your address (see below)  |
+| `website`, `hostname` | Always the same: where the server files the events of the CLI                |
 
-Nothing about your repos is in it: no name, no path, nothing read from a manifest. `init`,
-`validate` and `upload` send nothing.
+Nothing else is in it: no name, no path, nothing read from a manifest. `init`, `validate` and
+`upload` send nothing.
 
 - **The first build says so and sends nothing.** It prints a note, makes the id and keeps it in
   `~/.config/furio/telemetry.json` (`$XDG_CONFIG_HOME/furio` if set, `%APPDATA%\furio` on
   Windows). Builds are counted from the second one. In CI nothing is remembered between runs: every
   build prints the note on one line of its log, and is counted without an id.
+- **In GitHub Actions it says, coarsely, which project builds.** Builds alone cannot tell one
+  project that builds every hour from many that build once. So there the user agent reads
+  `Furio (linux; ci 0119903)`: the number is a fingerprint of the repository the workflow runs in,
+  a hash of the number GitHub gives it, cut to one of 1,048,576 values. GitHub has handed out
+  more than a billion repository numbers, so over a thousand of them give the same value: enough
+  to count projects, too little to point at yours. It is never the name of the repository, and
+  nothing of its owner. For a public repository, whose workflows anyone can read, that it builds
+  with Furio is public anyway.
 - **Your address is not kept.** Like any request, the event reaches our server from your IP
   address. Because the event names `127.0.0.1`, the analytics server works with that one instead:
   it stores nothing of yours and looks no place up.

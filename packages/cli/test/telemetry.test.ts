@@ -11,6 +11,8 @@ import {
   countBuild,
   isCI,
   nodeTelemetry,
+  PROJECT_FINGERPRINTS,
+  projectFingerprint,
   senderEnv,
   TELEMETRY_DOCS,
   TELEMETRY_SITE,
@@ -174,6 +176,105 @@ describe('telemetry', () => {
     expect(JSON.parse(runner.sent[0]!.body)).toEqual(JSON.parse(m.sent[0]!.body));
   });
 
+  it('says in GitHub Actions, coarsely, which project builds', () => {
+    const actions = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '123456789' };
+    const m = machine(actions);
+    countBuild(m.host);
+    expect(JSON.parse(m.sent[0]!.body)).toEqual({
+      type: 'event',
+      payload: {
+        website: TELEMETRY_SITE,
+        hostname: 'cli.getfurio.com',
+        url: `/build/ci/${VERSION}`,
+        os: 'Linux',
+        userAgent: 'Furio (linux; ci 0119903)',
+        ip: '127.0.0.1',
+      },
+    });
+    // The note of the log says so, still on one line.
+    expect(m.out.stderr).toContain('a coarse fingerprint of this repository');
+    expect(m.out.stderr).toContain('1,048,576');
+    expect(m.out.stderr).toContain('No name, no path, no id.');
+    expect(m.out.stderr.trimEnd().split('\n')).toHaveLength(1);
+    expect(existsSync(m.file)).toBe(false);
+
+    // The same repository always says the same, another one something else, on any server.
+    expect(projectFingerprint(actions)).toBe('0119903');
+    expect(projectFingerprint({ ...actions, GITHUB_SERVER_URL: 'https://github.com' })).toBe(
+      '0119903',
+    );
+    expect(projectFingerprint({ ...actions, GITHUB_SERVER_URL: 'HTTPS://GitHub.com/' })).toBe(
+      '0119903',
+    );
+    expect(projectFingerprint({ ...actions, GITHUB_REPOSITORY_ID: '987654321' })).toBe('0535715');
+    expect(projectFingerprint({ ...actions, GITHUB_SERVER_URL: 'https://ghe.example.com' })).toBe(
+      '0347369',
+    );
+    // Neither the name nor the owner is read: nothing of them can come out.
+    expect(
+      projectFingerprint({
+        ...actions,
+        GITHUB_REPOSITORY: 'acme/catalog',
+        GITHUB_REPOSITORY_OWNER: 'acme',
+        GITHUB_REPOSITORY_OWNER_ID: '42',
+      }),
+    ).toBe('0119903');
+  });
+
+  it('makes no fingerprint outside GitHub Actions, or from a number that is not one', () => {
+    const none: Record<string, string>[] = [
+      {},
+      { GITHUB_REPOSITORY_ID: '123456789' },
+      { CI: 'true', GITHUB_REPOSITORY_ID: '123456789' },
+      { GITHUB_ACTIONS: 'true' },
+      { GITHUB_ACTIONS: 'false', GITHUB_REPOSITORY_ID: '123456789' },
+      { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '' },
+      { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '12a' },
+      { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '-5' },
+      { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: ' 12' },
+      { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '1'.repeat(21) },
+    ];
+    for (const env of none) expect(projectFingerprint(env)).toBeUndefined();
+    // Another CI: counted as before, with no word about a fingerprint.
+    const m = machine({ GITLAB_CI: 'true', GITHUB_REPOSITORY_ID: '123456789' });
+    countBuild(m.host);
+    expect(JSON.parse(m.sent[0]!.body).payload.userAgent).toBe('Furio (linux; ci)');
+    expect(m.out.stderr).not.toContain('fingerprint');
+    // A machine's own build never carries one, even with the variables of a runner around.
+    const local = machine({ GITHUB_REPOSITORY_ID: '123456789' }).told();
+    countBuild(local.host);
+    expect(JSON.parse(local.sent[0]!.body).payload.userAgent).toBe(`Furio (linux; ${ID})`);
+  });
+
+  it('keeps the fingerprint coarse and even: a million values, each one a crowd', () => {
+    expect(PROJECT_FINGERPRINTS).toBe(1_048_576);
+    const seen = new Set<string>();
+    const count = 50_000;
+    for (let id = 1_400_000_000; id < 1_400_000_000 + count; id++) {
+      const value = projectFingerprint({
+        GITHUB_ACTIONS: 'true',
+        GITHUB_REPOSITORY_ID: String(id),
+      })!;
+      expect(value).toMatch(/^\d{7}$/);
+      expect(Number(value)).toBeLessThan(PROJECT_FINGERPRINTS);
+      seen.add(value);
+    }
+    // As many different values as chance gives: neither a counter in disguise, nor a few values.
+    const byChance = PROJECT_FINGERPRINTS * (1 - Math.exp(-count / PROJECT_FINGERPRINTS));
+    expect(Math.abs(seen.size - byChance) / byChance).toBeLessThan(0.01);
+    // GitHub's repository numbers passed 1.4 billion in 2026: this many share each value.
+    expect(1_400_000_000 / PROJECT_FINGERPRINTS).toBeGreaterThan(1000);
+  });
+
+  // On a GitHub runner the number is there: if GitHub stops giving it, this says so.
+  it.runIf(process.env.GITHUB_ACTIONS === 'true')(
+    'finds the number of the repository on a real GitHub runner',
+    () => {
+      expect(process.env.GITHUB_REPOSITORY_ID).toMatch(/^\d+$/);
+      expect(projectFingerprint(process.env)).toMatch(/^\d{7}$/);
+    },
+  );
+
   it('knows a CI when it sees one', () => {
     for (const name of [
       'CI',
@@ -278,6 +379,11 @@ describe('telemetry', () => {
         const event = buildEvent({ version: VERSION, platform, ci: false, id });
         expect(isbot(event.payload.userAgent), event.payload.userAgent).toBe(false);
       }
+      for (let value = 0; value < PROJECT_FINGERPRINTS; value += 251) {
+        const project = String(value).padStart(7, '0');
+        const event = buildEvent({ version: VERSION, platform, ci: true, project });
+        expect(isbot(event.payload.userAgent), event.payload.userAgent).toBe(false);
+      }
     }
     // The filter is real: this is what it does to a hex id that spells a word.
     expect(isbot('Furio (linux; 8feedce1-9542-4578-942b-f4d77de5e668)')).toBe(true);
@@ -375,9 +481,18 @@ describe('furio build and furio telemetry', () => {
 
     const ci = await cli(machine({ CI: 'true' }), ['telemetry']);
     expect(ci.stdout).toContain('This is CI');
+    expect(ci.stdout).toContain('without an id:');
     expect(ci.stdout).toContain(
       JSON.stringify(buildEvent({ version: VERSION, platform: 'linux', ci: true })),
     );
+    const actions = await cli(
+      machine({ GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '123456789' }),
+      ['telemetry'],
+    );
+    expect(actions.stdout).toContain(
+      'with a coarse fingerprint of this repository (0119903) in place of an id:',
+    );
+    expect(actions.stdout).toContain('"userAgent":"Furio (linux; ci 0119903)"');
 
     expect((await cli(machine({ DO_NOT_TRACK: '1' }), ['telemetry'])).stdout).toContain(
       'Telemetry is off: DO_NOT_TRACK is set.',
@@ -438,7 +553,9 @@ describe('furio build and furio telemetry', () => {
 
     const typo = await cli(m, ['telemtry']);
     expect(typo.stderr).toContain('Did you mean "furio telemetry"?');
-    expect((await cli(m, ['--help'])).stdout).toContain('furio telemetry [enable|disable]');
+    const help = (await cli(m, ['--help'])).stdout;
+    expect(help).toContain('furio telemetry [enable|disable]');
+    expect(help).toContain('a coarse fingerprint of the repository');
   });
 });
 
@@ -458,6 +575,12 @@ describe('the guide', () => {
     expect(TELEMETRY_DOCS).toBe('https://getfurio.com/docs/github-action/#telemetry');
     for (const word of ['FURIO_TELEMETRY=0', 'DO_NOT_TRACK=1', 'furio telemetry disable'])
       expect(chapter).toContain(word);
+    // The fingerprint of GitHub Actions: its example is a real one, and the count is the code's.
+    const project = /`Furio \(linux; ci (\d{7})\)`/.exec(chapter)![1]!;
+    expect(project).toBe(
+      projectFingerprint({ GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY_ID: '123456789' }),
+    );
+    expect(chapter).toContain(PROJECT_FINGERPRINTS.toLocaleString('en-US'));
   });
 });
 
