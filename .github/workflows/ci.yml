@@ -72,6 +72,9 @@ jobs:
         run: pnpm smoke
 
       - name: Smoke test the npm tarball
+        # Our own builds are not counted: docs/guide/github-action.md#telemetry
+        env:
+          FURIO_TELEMETRY: 0
         run: |
           cd packages/cli
           pnpm pack --pack-destination "$RUNNER_TEMP"
