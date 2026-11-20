@@ -145,6 +145,11 @@ furio upload [path]        Validate, then send the .architecture/ folder to Furi
 Exit codes: `0` valid, `1` invalid, `2` usage or runtime error.
 [Set up Furio](docs/guide/github-action.md#5-the-action-and-the-cli) has every option.
 
+`furio build` is counted, anonymously: the Furio version, the operating system, whether it ran
+in CI and a random id or, in GitHub Actions, a coarse fingerprint of the repository. No name, no
+path, nothing from your manifests. `FURIO_TELEMETRY=0` turns it off;
+[Telemetry](docs/guide/github-action.md#telemetry) shows the whole event.
+
 ## Development
 
 ```bash

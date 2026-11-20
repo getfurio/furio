@@ -10,6 +10,8 @@ import {
   indexModel,
   isDeprecatedRelation,
   isRetired,
+  MADE_WITH_URL,
+  madeWith,
   matchesFilter,
   revision,
   search,
@@ -193,6 +195,24 @@ describe('site helpers', () => {
 
   it('marks a model built from folders as local', () => {
     expect(revision(site.model)).toBe('local');
+  });
+
+  it('says at the foot which Furio made the map, and leads to its site', () => {
+    // This model's generator is "test": not a version, so none is shown.
+    expect(madeWith(site.model)).toBe('Made with Furio');
+    expect(madeWith({ ...site.model, generator: { name: 'furio', version: '1.0.0-rc.1' } })).toBe(
+      'Made with Furio 1.0.0-rc.1',
+    );
+    expect(madeWith({ ...site.model, generator: { name: 'furio', version: '0.7.0' } })).toBe(
+      'Made with Furio 0.7.0',
+    );
+    // The version comes with the model: anything that does not read like one is left out.
+    for (const version of ['', 'latest', '1.2', '0.7.0 <b>', '0.7.0-' + 'x'.repeat(40), 7])
+      expect(madeWith({ ...site.model, generator: { name: 'furio', version } } as never)).toBe(
+        'Made with Furio',
+      );
+    expect(madeWith({ ...site.model, generator: undefined } as never)).toBe('Made with Furio');
+    expect(MADE_WITH_URL).toBe('https://getfurio.com/?utm_source=map');
   });
 });
 

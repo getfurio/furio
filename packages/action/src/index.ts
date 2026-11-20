@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Model } from '@getfurio/core';
-import { commandData, run } from '@getfurio/cli';
+import { commandData, nodeTelemetry, run } from '@getfurio/cli';
 
 /** Reads an action input the way the runner passes it: INPUT_<NAME>, upper case, spaces as _. */
 export function input(env: NodeJS.ProcessEnv, name: string): string {
@@ -272,6 +272,8 @@ async function main() {
       ...(uploadToken ? { FURIO_UPLOAD_TOKEN: uploadToken } : {}),
     },
     isTTY: false,
+    // A build is counted like the CLI's: `env: FURIO_TELEMETRY: 0` on the step turns it off.
+    telemetry: nodeTelemetry(env),
   });
 
   const comment =

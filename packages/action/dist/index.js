@@ -7370,22 +7370,22 @@ var require_dist = __commonJS({
 });
 
 // src/index.ts
-import { appendFileSync, existsSync as existsSync4, readFileSync as readFileSync4, rmSync as rmSync2 } from "fs";
+import { appendFileSync, existsSync as existsSync4, readFileSync as readFileSync5, rmSync as rmSync2 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
-import { join as join7 } from "path";
+import { join as join8 } from "path";
 
 // ../cli/src/main.ts
 import {
   cpSync,
   existsSync as existsSync3,
-  mkdirSync as mkdirSync3,
+  mkdirSync as mkdirSync4,
   mkdtempSync,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync4,
   rmSync,
-  writeFileSync as writeFileSync4
+  writeFileSync as writeFileSync5
 } from "fs";
 import { tmpdir } from "os";
-import { basename as basename3, dirname as dirname4, join as join6, resolve as resolve3 } from "path";
+import { basename as basename3, dirname as dirname5, join as join7, resolve as resolve3 } from "path";
 import { fileURLToPath } from "url";
 import { parseArgs } from "util";
 
@@ -15759,12 +15759,12 @@ function hu_default() {
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
-function withDefiniteArticle(word) {
-  if (!word)
+function withDefiniteArticle(word2) {
+  if (!word2)
     return "";
   const vowels = ["\u0561", "\u0565", "\u0568", "\u056B", "\u0578", "\u0578\u0582", "\u0585"];
-  const lastChar = word[word.length - 1];
-  return word + (vowels.includes(lastChar) ? "\u0576" : "\u0568");
+  const lastChar = word2[word2.length - 1];
+  return word2 + (vowels.includes(lastChar) ? "\u0576" : "\u0568");
 }
 var error24 = () => {
   const Sizable = {
@@ -28595,8 +28595,8 @@ ${d.hint}` : d.message;
   }
   return out.length ? out.join("\n") + "\n" : "";
 }
-function plural2(n, word) {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
+function plural2(n, word2) {
+  return `${n} ${word2}${n === 1 ? "" : "s"}`;
 }
 function formatBuild(model, options) {
   const paint = (style, text3) => options.color ? styleText(style, text3) : text3;
@@ -28683,7 +28683,7 @@ var SKILL = "---\nname: furio-architecture\ndescription: Keep this repo's .archi
 // ../cli/package.json
 var package_default = {
   name: "@getfurio/cli",
-  version: "0.6.4",
+  version: "0.7.0",
   description: "Furio likes things tidy: validate and map your architecture, straight from your repos.",
   license: "MIT",
   type: "module",
@@ -28717,7 +28717,8 @@ var package_default = {
   devDependencies: {
     "@getfurio/core": "workspace:*",
     "@getfurio/schema": "workspace:*",
-    "@getfurio/site": "workspace:*"
+    "@getfurio/site": "workspace:*",
+    isbot: "^5.2.3"
   },
   exports: {
     ".": {
@@ -28859,9 +28860,286 @@ function slugify2(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "my-project";
 }
 
+// ../cli/src/telemetry.ts
+import { spawn } from "child_process";
+import { createHash, randomBytes } from "crypto";
+import { mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync3 } from "fs";
+import { homedir } from "os";
+import { dirname as dirname4, join as join5 } from "path";
+var TELEMETRY_URL = "https://stats.getfurio.com/api/send";
+var TELEMETRY_SITE = "8ce19b1b-caab-4b82-8279-b65495c42c11";
+var TELEMETRY_DOCS = "https://getfurio.com/docs/github-action/#telemetry";
+var OFF_WORDS = /* @__PURE__ */ new Set(["0", "false", "off", "no"]);
+var word = (value) => (value ?? "").trim().toLowerCase();
+var isSet = (value) => word(value) !== "" && !OFF_WORDS.has(word(value));
+function telemetryOff(env) {
+  if (env.FURIO_TELEMETRY !== void 0 && OFF_WORDS.has(word(env.FURIO_TELEMETRY)))
+    return "FURIO_TELEMETRY";
+  return isSet(env.DO_NOT_TRACK) ? "DO_NOT_TRACK" : void 0;
+}
+var CI_VARIABLES = [
+  "CI",
+  "CONTINUOUS_INTEGRATION",
+  "GITHUB_ACTIONS",
+  "GITLAB_CI",
+  "BUILDKITE",
+  "CIRCLECI",
+  "TF_BUILD",
+  "JENKINS_URL",
+  "TEAMCITY_VERSION",
+  "BITBUCKET_BUILD_NUMBER",
+  "CODEBUILD_BUILD_ID",
+  "DRONE",
+  "TRAVIS",
+  "APPVEYOR"
+];
+function isCI(env) {
+  return CI_VARIABLES.some((name) => isSet(env[name]));
+}
+function telemetryFile(env, platform, home) {
+  const base = env.XDG_CONFIG_HOME || (platform === "win32" ? env.APPDATA : void 0) || (home ? join5(home, ".config") : void 0);
+  return base ? join5(base, "furio", "telemetry.json") : void 0;
+}
+var ID = /^\d{25}$/;
+function newId() {
+  return BigInt(`0x${randomBytes(10).toString("hex")}`).toString().padStart(25, "0");
+}
+function readState(file2) {
+  try {
+    const value = JSON.parse(readFileSync3(file2, "utf8"));
+    if (!value || typeof value !== "object") return {};
+    return {
+      ...typeof value.id === "string" && ID.test(value.id) ? { id: value.id } : {},
+      ...typeof value.enabled === "boolean" ? { enabled: value.enabled } : {},
+      ...typeof value.noticed === "string" ? { noticed: value.noticed } : {}
+    };
+  } catch {
+    return {};
+  }
+}
+function writeState(file2, state) {
+  try {
+    mkdirSync3(dirname4(file2), { recursive: true });
+    writeFileSync3(file2, JSON.stringify(state, null, 2) + "\n");
+    return void 0;
+  } catch (error62) {
+    return error62.code ?? error62.message;
+  }
+}
+var PROJECT_FINGERPRINTS = 2 ** 16;
+function projectFingerprint(env) {
+  const repository = env.GITHUB_REPOSITORY_ID ?? "";
+  if (env.GITHUB_ACTIONS !== "true" || !/^\d{1,20}$/.test(repository)) return void 0;
+  const server = (env.GITHUB_SERVER_URL || "https://github.com").toLowerCase().replace(/\/+$/, "");
+  if (server !== "https://github.com") return void 0;
+  const hash2 = createHash("sha256").update(`furio project
+${repository}`).digest();
+  return String(hash2.readUInt32BE(0) % PROJECT_FINGERPRINTS).padStart(5, "0");
+}
+var OS = { darwin: "Mac OS", linux: "Linux", win32: "Windows" };
+function buildEvent(build2) {
+  const who = build2.id ?? (build2.project ? `ci ${build2.project}` : "ci");
+  return {
+    type: "event",
+    payload: {
+      website: TELEMETRY_SITE,
+      hostname: "cli.getfurio.com",
+      url: `/build/${build2.ci ? "ci" : "local"}/${build2.version}`,
+      os: OS[build2.platform] ?? build2.platform,
+      ...build2.id ? { id: build2.id } : {},
+      // The server's visitors are user agents: this is how it tells two machines apart, or two
+      // projects in CI.
+      userAgent: `Furio (${build2.platform}; ${who})`,
+      // Nobody's address, on purpose: the server uses this one, not the one the request comes from.
+      ip: "127.0.0.1"
+    }
+  };
+}
+var TURN_OFF = '"furio telemetry disable", FURIO_TELEMETRY=0 or DO_NOT_TRACK=1';
+function firstNotice(file2) {
+  return `note: Furio counts builds, anonymously. From the next one, each "furio build" sends the Furio
+  version, the operating system, whether it ran in CI and a random id, kept in
+  ${file2}
+  Nothing about your repos, and this build sent nothing.
+  To turn it off: ${TURN_OFF}.
+  Details: ${TELEMETRY_DOCS}
+`;
+}
+function ciNotice(project) {
+  const sends = project ? "the Furio version, the operating system, that it ran in CI and a coarse fingerprint of this repository: one of 65,536 values, which twenty thousand others share. No name, no path, no id." : "the Furio version, the operating system and that it ran in CI. Nothing about your repos, and no id.";
+  return `note: Furio counts builds, anonymously: this one sends ${sends} FURIO_TELEMETRY=0 turns it off. Details: ${TELEMETRY_DOCS}
+`;
+}
+function countBuild(io) {
+  const telemetry2 = io.telemetry;
+  if (!telemetry2 || telemetryOff(io.env)) return;
+  try {
+    const deliver = (event) => {
+      const body = JSON.stringify(event);
+      if (isSet(io.env.FURIO_TELEMETRY_DEBUG))
+        io.stderr(`telemetry (FURIO_TELEMETRY_DEBUG is set, nothing is sent): ${body}
+`);
+      else telemetry2.send({ url: TELEMETRY_URL, body, userAgent: `furio/${VERSION}` });
+    };
+    const state = telemetry2.file ? readState(telemetry2.file) : {};
+    if (state.enabled === false) return;
+    if (isCI(io.env)) {
+      const project = projectFingerprint(io.env);
+      io.stderr(ciNotice(project));
+      deliver(
+        buildEvent({
+          version: VERSION,
+          platform: telemetry2.platform,
+          ci: true,
+          ...project ? { project } : {}
+        })
+      );
+      return;
+    }
+    if (!telemetry2.file) return;
+    if (!state.id || !state.noticed) {
+      const noticed = (telemetry2.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+      const id = state.id ?? (telemetry2.randomId ?? newId)();
+      if (writeState(telemetry2.file, { id, enabled: true, noticed })) return;
+      io.stderr(firstNotice(telemetry2.file));
+      return;
+    }
+    deliver(
+      buildEvent({ version: VERSION, platform: telemetry2.platform, ci: false, id: state.id })
+    );
+  } catch {
+  }
+}
+var TelemetryError = class extends Error {
+};
+function telemetryCommand(action, io) {
+  const telemetry2 = io.telemetry;
+  if (action !== void 0 && !["status", "enable", "disable"].includes(action))
+    throw new TelemetryError(
+      `Unknown action "${action}": use furio telemetry, furio telemetry enable or furio telemetry disable.`
+    );
+  const details = `Details: ${TELEMETRY_DOCS}
+`;
+  if (!telemetry2)
+    return `Telemetry is off: Furio counts builds only as the published package, never when it runs from its sources.
+${details}`;
+  const file2 = telemetry2.file;
+  if (action === "enable" || action === "disable") {
+    if (!file2)
+      throw new TelemetryError(
+        "There is no home folder to keep the choice in. Set FURIO_TELEMETRY=0 to turn telemetry off."
+      );
+    const state2 = readState(file2);
+    const next = action === "disable" ? { ...state2, enabled: false } : {
+      id: state2.id ?? (telemetry2.randomId ?? newId)(),
+      enabled: true,
+      // Turning it on by hand is knowing about it.
+      noticed: state2.noticed ?? (telemetry2.now?.() ?? /* @__PURE__ */ new Date()).toISOString()
+    };
+    const failed = writeState(file2, next);
+    if (failed)
+      throw new TelemetryError(
+        `Could not write ${file2} (${failed}). Set FURIO_TELEMETRY=0 to turn telemetry off.`
+      );
+  }
+  const state = file2 ? readState(file2) : {};
+  if (state.enabled === false)
+    return `Telemetry is off: no build is counted. The choice is kept in ${file2}
+Turn it back on: furio telemetry enable
+${details}`;
+  const variable = telemetryOff(io.env);
+  if (variable) {
+    const wins = state.enabled ? `, and it wins over the choice kept in ${file2}` : "";
+    return `Telemetry is off: ${variable} is set${wins}.
+${details}`;
+  }
+  const ci = isCI(io.env);
+  if (!ci && !file2)
+    return `Telemetry is off: there is no home folder to keep the id and the choice in.
+${details}`;
+  const project = ci ? projectFingerprint(io.env) : void 0;
+  const event = (id) => {
+    const build2 = {
+      version: VERSION,
+      platform: telemetry2.platform,
+      ci,
+      ...id ? { id } : {},
+      ...project ? { project } : {}
+    };
+    return `  ${JSON.stringify(buildEvent(build2))}`;
+  };
+  const lines = ci ? [
+    'Telemetry is on. This is CI: each "furio build" sends one anonymous event, ' + (project ? `with a coarse fingerprint of this repository (${project}) in place of an id:` : "without an id:"),
+    event(),
+    "Turn it off: FURIO_TELEMETRY=0 or DO_NOT_TRACK=1."
+  ] : state.id && state.noticed ? [
+    'Telemetry is on. Each "furio build" sends one anonymous event:',
+    event(state.id),
+    `The id is random, made on this machine and kept in ${file2}`,
+    `Turn it off: ${TURN_OFF}.`
+  ] : [
+    'Telemetry is on, and nothing was sent yet: the first "furio build" on this machine says so',
+    "and sends nothing. From the second, each build sends the Furio version, the operating",
+    "system, whether it ran in CI and a random id, made on this machine and kept in",
+    `${file2}`,
+    `Turn it off: ${TURN_OFF}.`
+  ];
+  return `${lines.join("\n")}
+${details}`;
+}
+var SENDER = "const [url, body, agent] = process.argv.slice(1);fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': agent }, body, redirect: 'error', signal: AbortSignal.timeout(5000) }).then((r) => r.arrayBuffer()).catch(() => {});";
+var SENDER_ENV = [
+  "SystemRoot",
+  "SYSTEMROOT",
+  "windir",
+  "WINDIR",
+  "TEMP",
+  "TMP",
+  "HTTPS_PROXY",
+  "https_proxy",
+  "HTTP_PROXY",
+  "http_proxy",
+  "NO_PROXY",
+  "no_proxy",
+  "NODE_USE_ENV_PROXY",
+  "NODE_EXTRA_CA_CERTS",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR"
+];
+function senderEnv(env) {
+  return Object.fromEntries(
+    SENDER_ENV.flatMap((name) => env[name] === void 0 ? [] : [[name, env[name]]])
+  );
+}
+function nodeTelemetry(env) {
+  let home;
+  try {
+    home = homedir() || void 0;
+  } catch {
+    home = void 0;
+  }
+  return {
+    file: telemetryFile(env, process.platform, home),
+    platform: process.platform,
+    send({ url: url2, body, userAgent }) {
+      try {
+        const child = spawn(process.execPath, ["-e", SENDER, "--", url2, body, userAgent], {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+          env: senderEnv(env)
+        });
+        child.on("error", () => void 0);
+        child.unref();
+      } catch {
+      }
+    }
+  };
+}
+
 // ../cli/src/upload.ts
-import { readdirSync as readdirSync2, writeFileSync as writeFileSync3 } from "fs";
-import { join as join5, relative as relative5, resolve as resolve2, sep as sep3 } from "path";
+import { readdirSync as readdirSync2, writeFileSync as writeFileSync4 } from "fs";
+import { join as join6, relative as relative5, resolve as resolve2, sep as sep3 } from "path";
 var DEFAULT_FURIO_URL = "https://getfurio.com";
 var UPLOAD_EXTENSIONS = [".yaml", ".yml", ".mmd", ".md"];
 function collectArchitectureFiles(architectureDir, root) {
@@ -28869,7 +29147,7 @@ function collectArchitectureFiles(architectureDir, root) {
   const walk = (dir) => {
     const entries = readdirSync2(dir, { withFileTypes: true });
     for (const entry of entries.sort((a, b) => a.name < b.name ? -1 : 1)) {
-      const path = join5(dir, entry.name);
+      const path = join6(dir, entry.name);
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) walk(path);
       else if (entry.isFile() && UPLOAD_EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))) {
@@ -28937,7 +29215,7 @@ async function upload(options) {
   if (options.previewOut) {
     if (response.ok && typeof body.comment === "string") {
       report([withServerDiagnostics(local, body.diagnostics)]);
-      writeFileSync3(options.previewOut, body.comment);
+      writeFileSync4(options.previewOut, body.comment);
       options.stdout(`Architecture comment for ${options.repo} written to ${options.previewOut}
 `);
       return 0;
@@ -28989,7 +29267,7 @@ function said(value) {
 }
 function withServerDiagnostics(local, diagnostics) {
   if (!diagnostics) return local;
-  const mapped = diagnostics.map((d) => ({ ...d, file: join5(local.root, d.file) }));
+  const mapped = diagnostics.map((d) => ({ ...d, file: join6(local.root, d.file) }));
   const errors = mapped.filter((d) => d.severity === "error").length;
   return {
     ...local,
@@ -29011,7 +29289,7 @@ function listFiles(options, files) {
 }
 
 // ../cli/src/main.ts
-var COMMANDS = ["init", "validate", "build", "upload", "help", "version"];
+var COMMANDS = ["init", "validate", "build", "upload", "telemetry", "help", "version"];
 var HELP = `furio ${VERSION}: Furio likes things tidy.
 
 Usage
@@ -29021,6 +29299,7 @@ Usage
   furio build --github <owner>      Same, collecting the manifests from a GitHub org or user
   furio upload [path]               Validate, then send the .architecture/ folder to Furio Cloud
   furio upload --dry-run [path]     Validate, check the token, list what would be sent
+  furio telemetry [enable|disable]  Show what a build sends to be counted; turn it on or off
 
 Validate options
   --model <file|url>             A published model.json: checks references to other repos
@@ -29056,6 +29335,12 @@ Common options
   --plain                        No personality, no colors
   -h, --help                     Show this help
   -v, --version                  Show the version
+
+Telemetry
+  Each build is counted, anonymously: the Furio version, the operating system, whether it ran
+  in CI and a random id (in GitHub Actions, a coarse fingerprint of the repository instead).
+  No name, no path, nothing from a manifest. FURIO_TELEMETRY=0 or DO_NOT_TRACK=1 turns it off,
+  and so does "furio telemetry disable"; "furio telemetry" shows the event.
 
 GitHub Action
   uses: getfurio/furio@<commit>  Validates the manifest on every pull request and push
@@ -29115,8 +29400,9 @@ Run "furio --help" for usage.
     if (command === "validate") return await validate2(rest, values, io);
     if (command === "build") return await build(rest, values, io);
     if (command === "upload") return await uploadCommand(rest, values, io);
+    if (command === "telemetry") return telemetry(rest, io);
   } catch (error62) {
-    if (error62 instanceof GitHubError || error62 instanceof UsageError) {
+    if (error62 instanceof GitHubError || error62 instanceof UsageError || error62 instanceof TelemetryError) {
       io.stderr(`${error62.message}
 `);
       return 2;
@@ -29170,7 +29456,7 @@ async function loadModel(location2, io) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       text3 = await response.text();
     } else {
-      text3 = readFileSync3(resolve3(io.cwd, location2), "utf8");
+      text3 = readFileSync4(resolve3(io.cwd, location2), "utf8");
     }
     const model = JSON.parse(text3);
     if (model.modelVersion !== 1 || !Array.isArray(model.components)) {
@@ -29197,7 +29483,7 @@ async function build(paths, values, io) {
   let checkout;
   try {
     if (values.github) {
-      checkout = mkdtempSync(join6(tmpdir(), "furio-collect-"));
+      checkout = mkdtempSync(join7(tmpdir(), "furio-collect-"));
       const token = io.env.FURIO_TOKEN || io.env.GITHUB_TOKEN || void 0;
       const collected = await collectFromGitHub({
         owner: values.github,
@@ -29219,14 +29505,15 @@ async function build(paths, values, io) {
     }
     const { model } = buildModel(sources, { workspace, generatorVersion: VERSION, skipped });
     const out = resolve3(io.cwd, values.out ?? "furio-model.json");
-    const file2 = out.endsWith(".json") ? out : join6(out, "model.json");
-    mkdirSync3(dirname4(file2), { recursive: true });
-    if (values.site) copySite(dirname4(file2));
-    writeFileSync4(file2, JSON.stringify(model, null, 2) + "\n");
+    const file2 = out.endsWith(".json") ? out : join7(out, "model.json");
+    mkdirSync4(dirname5(file2), { recursive: true });
+    if (values.site) copySite(dirname5(file2));
+    writeFileSync5(file2, JSON.stringify(model, null, 2) + "\n");
     const color = !values.plain && io.isTTY && !io.env.NO_COLOR;
     io.stdout(
       formatBuild(model, { plain: values.plain, color, cwd: io.cwd, output: file2, unlisted })
     );
+    countBuild(io);
     const invalid = model.repos.some((r) => r.status === "invalid");
     return values.strict && invalid ? 1 : 0;
   } finally {
@@ -29281,6 +29568,11 @@ function furioUrl(value) {
     `--url (or FURIO_URL) must be an https address, got "${value}": the upload token would travel unencrypted. Plain http is accepted for localhost only.`
   );
 }
+function telemetry(args, io) {
+  if (args.length > 1) throw new UsageError("furio telemetry takes one action: enable or disable.");
+  io.stdout(telemetryCommand(args[0], io));
+  return 0;
+}
 function init(paths, values, io) {
   if (paths.length > 1) throw new UsageError("furio init takes one path.");
   const root = resolve3(io.cwd, paths[0] ?? ".");
@@ -29308,7 +29600,7 @@ function siteDir() {
 }
 function copySite(target) {
   const source = siteDir();
-  if (!existsSync3(join6(source, "index.html"))) {
+  if (!existsSync3(join7(source, "index.html"))) {
     throw new UsageError(`The map is not bundled with this build of furio (looked in ${source}).`);
   }
   cpSync(source, target, { recursive: true, filter: (path) => !path.endsWith("model.json") });
@@ -29323,11 +29615,11 @@ function isPullRequest(env) {
   return env.GITHUB_EVENT_NAME === "pull_request";
 }
 function commentFile(env) {
-  return join7(env.RUNNER_TEMP || tmpdir2(), "furio-pr-comment.md");
+  return join8(env.RUNNER_TEMP || tmpdir2(), "furio-pr-comment.md");
 }
 function readEvent(env) {
   try {
-    return env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync4(env.GITHUB_EVENT_PATH, "utf8")) : {};
+    return env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync5(env.GITHUB_EVENT_PATH, "utf8")) : {};
   } catch {
     return {};
   }
@@ -29407,7 +29699,7 @@ function buildArgs(env, event = {}) {
 }
 function outFile(env) {
   const out = input2(env, "out") || "_furio";
-  return out.endsWith(".json") ? out : join7(out, "model.json");
+  return out.endsWith(".json") ? out : join8(out, "model.json");
 }
 function text2(value) {
   return value.replace(/\s+/g, " ").replace(/[\\`*_[\]<>&|~$]/g, "\\$&");
@@ -29508,9 +29800,11 @@ async function main() {
       ...token ? { FURIO_TOKEN: token } : {},
       ...uploadToken ? { FURIO_UPLOAD_TOKEN: uploadToken } : {}
     },
-    isTTY: false
+    isTTY: false,
+    // A build is counted like the CLI's: `env: FURIO_TELEMETRY: 0` on the step turns it off.
+    telemetry: nodeTelemetry(env)
   });
-  const comment = preview && existsSync4(commentFile(env)) ? readFileSync4(commentFile(env), "utf8") : "";
+  const comment = preview && existsSync4(commentFile(env)) ? readFileSync5(commentFile(env), "utf8") : "";
   const number4 = event.pull_request?.number;
   const githubToken = input2(env, "github-token");
   if (comment && number4 && githubToken && env.GITHUB_REPOSITORY) {
@@ -29532,14 +29826,14 @@ async function main() {
     }
   }
   if (args[0] === "build") {
-    const file2 = join7(env.GITHUB_WORKSPACE || process.cwd(), outFile(env));
+    const file2 = join8(env.GITHUB_WORKSPACE || process.cwd(), outFile(env));
     if (existsSync4(file2)) {
       if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `model=${file2}
 `);
       if (env.GITHUB_STEP_SUMMARY) {
         appendFileSync(
           env.GITHUB_STEP_SUMMARY,
-          buildSummary(JSON.parse(readFileSync4(file2, "utf8")))
+          buildSummary(JSON.parse(readFileSync5(file2, "utf8")))
         );
       }
     }

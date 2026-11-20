@@ -4,7 +4,7 @@ Changes to `@getfurio/cli`, the GitHub Action (`getfurio/furio`), the manifest s
 map, newest first. The map ships inside the CLI (`furio build --site`) and the Action
 (`command: build` with `site: true`), so a change to the map reaches both with the same version.
 
-## Unreleased
+## 0.7.0 — 2026-11-20
 
 ### Added
 
@@ -19,6 +19,16 @@ map, newest first. The map ships inside the CLI (`furio build --site`) and the A
   component page and the health page show what replaces a component and mark deprecated
   relations.
 - The coding-agent skill tells agents not to add dependencies on deprecated components.
+- Telemetry: `furio build`, from the CLI and from the Action, is counted with one anonymous event
+  (the Furio version, the operating system, whether it ran in CI and, outside CI, a random id made
+  on the machine; in GitHub Actions on github.com, in place of the id, a coarse fingerprint of
+  the repository, one of 65,536 values that over twenty thousand repositories share each; no
+  name, no path, nothing from a manifest). The first build on a machine says so and sends
+  nothing; in CI every build says so in its log. `furio telemetry` shows the event,
+  `furio telemetry disable`, `FURIO_TELEMETRY=0` or `DO_NOT_TRACK=1` turn it off. The guide has
+  the whole event: [Telemetry](docs/guide/github-action.md#telemetry).
+- Map: the foot of the sidebar says which Furio built the map ("Made with Furio 0.7.0") and opens
+  getfurio.com in a new tab. The map itself still sends nothing to anyone.
 
 ## 0.6.4 — 2026-10-09
 

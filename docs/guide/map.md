@@ -135,6 +135,12 @@ relation is an edge coloured by kind:
 **Appearance**, at the bottom of the sidebar, sets the theme (system, light, dark) and the
 palette (Furio, Blueprint, Circuit) of the map and its diagrams, in this browser.
 
+Under it, **Made with Furio** says which version built the map and opens getfurio.com in a new
+tab. The map sends nothing to anyone on its own. Only when someone follows that link does their
+browser tell getfurio.com where the visit comes from: the address the map is served from (in
+current browsers just the name of its server), never the page open in it. A
+`Referrer-Policy: no-referrer` header on your hosting hides that too.
+
 ### Pages
 
 | Page      | Address                     | What it shows                                                |

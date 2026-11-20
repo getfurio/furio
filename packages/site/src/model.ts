@@ -233,6 +233,20 @@ export function search(
     .slice(0, limit);
 }
 
+/** Where the foot of the sidebar leads. getfurio.com counts its visits: this says a map sent one. */
+export const MADE_WITH_URL = 'https://getfurio.com/?utm_source=map';
+
+/**
+ * The foot of the sidebar: which Furio built the map. The version comes with the model, so it is
+ * shown only when it reads like one.
+ */
+export function madeWith(model: Model): string {
+  const version: unknown = (model as { generator?: { version?: unknown } }).generator?.version;
+  return typeof version === 'string' && /^\d+\.\d+\.\d+(-[\w.]{1,20})?$/.test(version)
+    ? `Made with Furio ${version}`
+    : 'Made with Furio';
+}
+
 /**
  * A short fingerprint of the repo commits the map was built from: it changes whenever any repo on
  * the map changes. "local" when the model was built from folders without commits.
